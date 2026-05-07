@@ -7,4 +7,4 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "gym-success-plan"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "8ebeed40-25c5-4054-9bb0-70c041e8bfa5"
