@@ -7,10 +7,13 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:create": "wrangler d1 create gym-success-plan",
+    "db:apply": "wrangler d1 execute gym-success-plan --remote --file=schema.sql",
+    "db:apply:local": "wrangler d1 execute gym-success-plan --local --file=schema.sql",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=gym-success-plan"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "framer-motion": "^11.11.1",
     "lucide-react": "^0.453.0",
     "react": "^18.3.1",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.2",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "wrangler": "^4.88.0"
   }
 }

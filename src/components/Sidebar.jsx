@@ -1,5 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, Dumbbell, LineChart, Apple, Users, User, CloudCheck, CloudOff } from 'lucide-react';
+import { LayoutDashboard, Dumbbell, LineChart, Apple, Users, User, Cloud, CloudOff } from 'lucide-react';
 import useStore from '../store/useStore.js';
 import StreakBadge from './StreakBadge.jsx';
 import { formatRelative } from '../utils/calculations.js';
@@ -42,7 +42,7 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
-        {online ? <CloudCheck size={14} style={{ color: 'var(--success)' }} /> : <CloudOff size={14} style={{ color: 'var(--danger)' }} />}
+        {online ? <Cloud size={14} style={{ color: 'var(--success)' }} /> : <CloudOff size={14} style={{ color: 'var(--danger)' }} />}
         <span>{syncing ? 'Syncing…' : lastSyncedAt ? `Synced ${formatRelative(lastSyncedAt)}` : 'Local only'}</span>
       </div>
     </aside>

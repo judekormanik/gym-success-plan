@@ -32,8 +32,9 @@ self.addEventListener('activate', (event) => {
 
 const isApiRequest = (url) =>
   url.pathname.startsWith('/api/') ||
-  url.pathname.startsWith('/functions/') ||
-  url.hostname.includes('supabase.co') ||
+  url.pathname === '/verify-subscription' ||
+  url.pathname === '/create-checkout-session' ||
+  url.pathname === '/webhook' ||
   url.hostname.includes('stripe.com');
 
 const isStaticAsset = (url) =>

@@ -1,13 +1,17 @@
 // Cloudflare Pages Function: POST /webhook
-// Handles Stripe webhook events. Verifies signature, then activates subscription in Supabase.
+// Handles Stripe webhook events. Verifies signature, then activates subscription in D1.
 
 export async function onRequestPost({ request, env }) {
   const sig = request.headers.get('stripe-signature');
-  if (!sig) return new Response('Missing signature', { status: 400 });
+  if (!sig && env.STRIPE_WEBHOOK_SECRET) {
+    return new Response('Missing signature', { status: 400 });
+  }
 
   const body = await request.text();
-  const valid = await verifyStripeSignature(body, sig, env.STRIPE_WEBHOOK_SECRET);
-  if (!valid) return new Response('Invalid signature', { status: 400 });
+  if (env.STRIPE_WEBHOOK_SECRET) {
+    const valid = await verifyStripeSignature(body, sig, env.STRIPE_WEBHOOK_SECRET);
+    if (!valid) return new Response('Invalid signature', { status: 400 });
+  }
 
   let event;
   try { event = JSON.parse(body); } catch { return new Response('Bad payload', { status: 400 }); }
@@ -17,20 +21,17 @@ export async function onRequestPost({ request, env }) {
     const email = session.customer_details?.email || session.customer_email || session.metadata?.email;
     const customerId = session.customer;
 
-    if (email) {
+    if (email && env.DB) {
       const expires = new Date();
       expires.setFullYear(expires.getFullYear() + 1);
 
-      await supabaseRequest(env, '/rest/v1/users', {
-        method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates,return=minimal', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          subscription_status: 'active',
-          subscription_expires: expires.toISOString(),
-          stripe_customer_id: customerId,
-        }),
-      });
+      await env.DB.prepare(
+        `UPDATE users
+           SET subscription_status = 'active',
+               subscription_expires = ?,
+               stripe_customer_id = COALESCE(?, stripe_customer_id)
+         WHERE email = ?`
+      ).bind(expires.toISOString(), customerId || null, email).run();
     }
   }
 
@@ -38,8 +39,7 @@ export async function onRequestPost({ request, env }) {
 }
 
 async function verifyStripeSignature(payload, header, secret) {
-  // Stripe signature header looks like: "t=timestamp,v1=hash,v1=hash"
-  if (!secret) return true; // dev / unconfigured: skip verification (do not use in production without secret)
+  if (!header) return false;
   const parts = Object.fromEntries(header.split(',').map((p) => p.split('=')));
   const timestamp = parts.t;
   const signature = parts.v1;
@@ -59,18 +59,4 @@ function safeEqual(a, b) {
   let r = 0;
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
-}
-
-async function supabaseRequest(env, path, init = {}) {
-  const url = (env.SUPABASE_URL || env.VITE_SUPABASE_URL) + path;
-  const key = env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return fetch(url, {
-    ...init,
-    headers: {
-      ...(init.headers || {}),
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-  });
 }

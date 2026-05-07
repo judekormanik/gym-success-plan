@@ -1,0 +1,10 @@
+name = "gym-success-plan"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "dist"
+
+# D1 database binding — created with: npx wrangler d1 create gym-success-plan
+# Replace database_id with the value Cloudflare returns after creation.
+[[d1_databases]]
+binding = "DB"
+database_name = "gym-success-plan"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
