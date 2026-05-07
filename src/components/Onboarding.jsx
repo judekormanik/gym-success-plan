@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Smartphone, Apple, ChevronUp, Check } from 'lucide-react';
+import { ArrowRight, Smartphone, ChevronUp, Check } from 'lucide-react';
 import useStore from '../store/useStore.js';
 import usePWA from '../hooks/usePWA.js';
 import { GOALS, EXPERIENCE } from '../utils/constants.js';
@@ -13,7 +13,7 @@ export default function Onboarding() {
   const profile = useStore((s) => s.profile);
   const saveProfile = useStore((s) => s.saveProfile);
   const pushToast = useStore((s) => s.pushToast);
-  const { canPrompt, ios, standalone, triggerInstall, pwaInstalled } = usePWA();
+  const { ios, standalone, triggerInstall, pwaInstalled } = usePWA();
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState(profile?.name || '');
@@ -34,7 +34,7 @@ export default function Onboarding() {
   };
 
   const handleInstall = async () => {
-    if (ios) return; // iOS shows manual instructions
+    if (ios) return;
     const ok = await triggerInstall();
     if (ok) {
       pushToast("You're all set, opening your app now", 'success');
@@ -44,7 +44,6 @@ export default function Onboarding() {
 
   const skipInstall = () => finishOnboarding();
 
-  // Skip step 5 entirely if already standalone or installed
   if (step === 5 && (standalone || pwaInstalled)) {
     finishOnboarding();
     return null;
@@ -58,8 +57,13 @@ export default function Onboarding() {
     step === 5;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', gap: 6 }}>
+    <div style={{
+      minHeight: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      paddingTop: 'env(safe-area-inset-top)',
+    }}>
+      <div style={{ padding: '20px 16px 8px', display: 'flex', justifyContent: 'center', gap: 6 }}>
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <div
             key={i}
@@ -74,8 +78,15 @@ export default function Onboarding() {
         ))}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <div style={{ width: '100%', maxWidth: 460 }}>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        padding: '20px 16px',
+        overflow: 'auto',
+      }}>
+        <div style={{ width: '100%', maxWidth: 460, paddingBottom: 100 }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -92,7 +103,7 @@ export default function Onboarding() {
                     placeholder="Your first name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    style={{ height: 52, fontSize: 16 }}
+                    style={{ minHeight: 56, fontSize: 17 }}
                   />
                 </Step>
               )}
@@ -150,8 +161,8 @@ export default function Onboarding() {
                   subtitle="Add The Gym Success Plan to your home screen for instant access, offline tracking, and a native app feel."
                 >
                   <div style={{
-                    margin: '24px auto',
-                    width: 200, height: 280,
+                    margin: '20px auto',
+                    width: 180, height: 240,
                     borderRadius: 28,
                     border: '2px solid rgba(255,255,255,0.1)',
                     background: 'linear-gradient(180deg, #0e0e0e, #141414)',
@@ -186,7 +197,8 @@ export default function Onboarding() {
                     onClick={skipInstall}
                     style={{
                       display: 'block', margin: '14px auto 0',
-                      color: 'var(--text-mute)', fontSize: 12, textDecoration: 'underline',
+                      color: 'var(--text-mute)', fontSize: 13, textDecoration: 'underline',
+                      padding: 8,
                     }}
                   >
                     Skip for now, I'll use the browser
@@ -195,23 +207,34 @@ export default function Onboarding() {
               )}
             </motion.div>
           </AnimatePresence>
-
-          {step < 5 && (
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-              {step > 1 && (
-                <button className="btn btn-ghost" onClick={back}>Back</button>
-              )}
-              <button
-                disabled={!canAdvance}
-                className="btn btn-gold btn-block"
-                onClick={step === 4 ? next : next}
-              >
-                Continue <ArrowRight size={16} />
-              </button>
-            </div>
-          )}
         </div>
       </div>
+
+      {step < 5 && (
+        <div style={{
+          position: 'sticky',
+          bottom: 0,
+          padding: '12px 16px',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+          background: 'linear-gradient(180deg, transparent, rgba(10,10,10,0.95) 30%)',
+          display: 'flex',
+          gap: 10,
+          maxWidth: 460,
+          width: '100%',
+          margin: '0 auto',
+        }}>
+          {step > 1 && (
+            <button className="btn btn-ghost" onClick={back}>Back</button>
+          )}
+          <button
+            disabled={!canAdvance}
+            className="btn btn-gold btn-block btn-lg"
+            onClick={next}
+          >
+            Continue <ArrowRight size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -220,7 +243,7 @@ function Step({ title, subtitle, children }) {
   return (
     <div>
       <div className="h2" style={{ marginBottom: 8 }}>{title}</div>
-      {subtitle && <div className="muted" style={{ marginBottom: 24 }}>{subtitle}</div>}
+      {subtitle && <div className="muted" style={{ marginBottom: 24, fontSize: 15 }}>{subtitle}</div>}
       {children}
     </div>
   );
@@ -237,14 +260,15 @@ function ChoiceCard({ active, onClick, title, body }) {
         cursor: 'pointer',
         borderColor: active ? 'rgba(212,175,55,0.6)' : 'var(--border)',
         background: active ? 'linear-gradient(180deg, rgba(212,175,55,0.07), transparent), var(--surface)' : 'var(--surface)',
+        minHeight: 64,
       }}
     >
       <div className="row-between">
-        <div>
-          <div style={{ fontWeight: 600 }}>{title}</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>{title}</div>
           <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{body}</div>
         </div>
-        {active && <Check size={18} style={{ color: 'var(--gold)' }} />}
+        {active && <Check size={20} style={{ color: 'var(--gold)', flexShrink: 0 }} />}
       </div>
     </button>
   );

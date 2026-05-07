@@ -32,17 +32,19 @@ function Header() {
       background: 'rgba(10,10,10,0.7)',
       backdropFilter: 'blur(12px)',
     }}>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="brand-mark" style={{ width: 28, height: 28, fontSize: 13 }}>G</div>
-          <div style={{ fontWeight: 700, letterSpacing: '-0.02em' }}>The Gym Success Plan</div>
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div className="brand-mark" style={{ width: 28, height: 28, fontSize: 13, flexShrink: 0 }}>G</div>
+          <div style={{ fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 14 }}>
+            Gym Success
+          </div>
         </Link>
-        <nav className="row gap-4" style={{ fontSize: 14, color: 'var(--text-dim)' }}>
-          <a href="#features" className="hide-sm">Features</a>
-          <a href="#pricing" className="hide-sm">Pricing</a>
-          <a href="#faq" className="hide-sm">FAQ</a>
+        <nav className="hide-sm row gap-4" style={{ fontSize: 14, color: 'var(--text-dim)' }}>
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
         </nav>
-        <div className="row gap-2">
+        <div className="row gap-2" style={{ flexShrink: 0 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setOpen(true)}>Login</button>
           <Link to="/checkout" className="btn btn-gold btn-sm">Get Started</Link>
         </div>
@@ -123,7 +125,7 @@ function LoginModal({ onClose }) {
 
 function Hero() {
   return (
-    <section style={{ padding: '80px 24px 60px', textAlign: 'center', maxWidth: 980, margin: '0 auto' }}>
+    <section style={{ padding: '56px 16px 48px', textAlign: 'center', maxWidth: 980, margin: '0 auto' }}>
       <motion.div
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       >
@@ -131,12 +133,15 @@ function Hero() {
           <span style={{ width: 6, height: 6, borderRadius: 99, background: 'var(--gold)' }} /> The system that actually works
         </div>
         <h1 className="h1">{APP_NAME}.</h1>
-        <p className="muted" style={{ fontSize: 18, maxWidth: 620, margin: '20px auto 0' }}>
+        <p className="muted" style={{ fontSize: 16, maxWidth: 620, margin: '16px auto 0', padding: '0 4px' }}>
           A complete fitness operating system. Plan, train, track, and progress — every workout, every meal, every PR — in one premium app.
         </p>
-        <div className="row gap-3" style={{ justifyContent: 'center', marginTop: 28 }}>
-          <Link to="/checkout" className="btn btn-gold btn-lg">Get Started · ${PRICE_USD}/yr</Link>
-          <a href="#features" className="btn btn-ghost btn-lg">See how it works</a>
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 10,
+          maxWidth: 360, margin: '24px auto 0',
+        }}>
+          <Link to="/checkout" className="btn btn-gold btn-lg btn-block">Get Started · ${PRICE_USD}/yr</Link>
+          <a href="#features" className="btn btn-ghost btn-lg btn-block">See how it works</a>
         </div>
         <div className="muted" style={{ marginTop: 14, fontSize: 12 }}>
           One plan · Cancel anytime · Works offline
