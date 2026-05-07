@@ -8,23 +8,57 @@ import useStore from '../store/useStore.js';
 export default function Checkout() {
   const navigate = useNavigate();
   const user = useStore((s) => s.user);
+  const signUp = useStore((s) => s.signUpWithEmail);
   const pushToast = useStore((s) => s.pushToast);
   const [email, setEmail] = useState(user?.email || '');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  const go = async () => {
-    if (!email) {
-      pushToast('Email required', 'error');
+  const isSignedIn = !!user;
+
+  const submit = async (e) => {
+    e?.preventDefault();
+    setError('');
+    if (!email) { setError('Email is required'); return; }
+    if (!isSignedIn && (!password || password.length < 6)) {
+      setError('Password must be at least 6 characters');
       return;
     }
     setBusy(true);
+
+    // Create the account first if needed — so checkout always has a real user
+    // to attach the subscription to.
+    if (!isSignedIn) {
+      const res = await signUp(email, password);
+      if (!res.ok) {
+        setBusy(false);
+        if (/exists/i.test(res.error || '')) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError(res.error || 'Could not create account');
+        }
+        return;
+      }
+      pushToast('Account created', 'success');
+    }
+
+    // Now start checkout. If Stripe is configured, this redirects to Stripe.
+    // If not, the demo fallback in stripe.js redirects to /checkout-success.
     await startCheckout(email);
     setBusy(false);
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
-      <div className="card slide-up" style={{ maxWidth: 460, width: '100%', padding: 32 }}>
+    <div style={{
+      minHeight: '100dvh',
+      display: 'grid',
+      placeItems: 'center',
+      padding: 16,
+      paddingTop: 'calc(16px + env(safe-area-inset-top))',
+      paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+    }}>
+      <div className="card slide-up" style={{ maxWidth: 460, width: '100%', padding: 24 }}>
         <Link to="/" className="muted row gap-2" style={{ fontSize: 12, marginBottom: 14 }}>
           <ArrowLeft size={12} /> Back
         </Link>
@@ -43,14 +77,59 @@ export default function Checkout() {
           ))}
         </ul>
 
-        <label className="label">Email</label>
-        <input className="input" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <form onSubmit={submit}>
+          <label className="label">Email</label>
+          <input
+            className="input"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isSignedIn}
+            required
+          />
 
-        <button onClick={go} disabled={busy} className="btn btn-gold btn-lg btn-block" style={{ marginTop: 14 }}>
-          {busy ? 'Redirecting to secure checkout…' : 'Pay with Stripe'}
-        </button>
+          {!isSignedIn && (
+            <>
+              <label className="label" style={{ marginTop: 12 }}>Create a password</label>
+              <input
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+              <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                You'll use this to sign in on any device.
+              </div>
+            </>
+          )}
 
-        <div className="row gap-2 muted" style={{ justifyContent: 'center', marginTop: 12, fontSize: 12 }}>
+          {error && (
+            <div style={{
+              marginTop: 12,
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: '#fca5a5',
+              fontSize: 13,
+            }}>
+              {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={busy} className="btn btn-gold btn-lg btn-block" style={{ marginTop: 16 }}>
+            {busy ? 'One moment…' : isSignedIn ? 'Pay with Stripe' : 'Create account & pay'}
+          </button>
+        </form>
+
+        <div className="row gap-2 muted" style={{ justifyContent: 'center', marginTop: 12, fontSize: 12, textAlign: 'center', flexWrap: 'wrap' }}>
           <ShieldCheck size={12} /> Payment is processed by Stripe. We never see your card.
         </div>
       </div>

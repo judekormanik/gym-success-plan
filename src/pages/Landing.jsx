@@ -58,15 +58,16 @@ function LoginModal({ onClose }) {
   const navigate = useNavigate();
   const signIn = useStore((s) => s.signInWithEmail);
   const signUp = useStore((s) => s.signUpWithEmail);
-  const magic = useStore((s) => s.signInWithMagicLink);
   const pushToast = useStore((s) => s.pushToast);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState('signin');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
+    setError('');
     setBusy(true);
     const fn = mode === 'signin' ? signIn : signUp;
     const res = await fn(email, password);
@@ -74,18 +75,11 @@ function LoginModal({ onClose }) {
     if (res.ok) {
       pushToast(mode === 'signin' ? 'Welcome back' : 'Account created', 'success');
       onClose();
-      navigate('/onboarding');
+      // Navigate to /dashboard — RequireAuth bounces to /onboarding if needed.
+      navigate('/dashboard');
     } else {
-      pushToast(res.error || 'Something went wrong', 'error');
+      setError(res.error || 'Something went wrong. Please try again.');
     }
-  };
-
-  const sendMagic = async () => {
-    if (!email) return;
-    setBusy(true);
-    const res = await magic(email);
-    setBusy(false);
-    pushToast(res.ok ? 'Magic link sent — check your email' : 'Could not send link', res.ok ? 'success' : 'error');
   };
 
   return (
@@ -93,7 +87,7 @@ function LoginModal({ onClose }) {
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
       display: 'grid', placeItems: 'center', zIndex: 100, padding: 16,
     }}>
-      <div onClick={(e) => e.stopPropagation()} className="card slide-up" style={{ width: '100%', maxWidth: 380, padding: 28 }}>
+      <div onClick={(e) => e.stopPropagation()} className="card slide-up" style={{ width: '100%', maxWidth: 380, padding: 24 }}>
         <div className="h2" style={{ marginBottom: 6 }}>{mode === 'signin' ? 'Welcome back' : 'Create your account'}</div>
         <div className="muted" style={{ marginBottom: 20, fontSize: 13 }}>
           {mode === 'signin' ? 'Sign in to continue your plan.' : 'Get instant access to the full system.'}
@@ -101,21 +95,51 @@ function LoginModal({ onClose }) {
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <label className="label">Email</label>
-            <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+            <input
+              className="input"
+              type="email"
+              autoComplete={mode === 'signin' ? 'email' : 'email'}
+              inputMode="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
           </div>
           <div>
             <label className="label">Password</label>
-            <input className="input" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 6 characters" />
+            <input
+              className="input"
+              type="password"
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+            />
           </div>
-          <button disabled={busy} className="btn btn-gold btn-block" style={{ marginTop: 6 }}>
+          {error && (
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: '#fca5a5',
+              fontSize: 13,
+            }}>
+              {error}
+            </div>
+          )}
+          <button type="submit" disabled={busy} className="btn btn-gold btn-block btn-lg" style={{ marginTop: 6 }}>
             {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
           </button>
         </form>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0', color: 'var(--text-mute)', fontSize: 12 }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />or<div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-        </div>
-        <button onClick={sendMagic} disabled={busy} className="btn btn-ghost btn-block">Email me a magic link</button>
-        <button onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')} style={{ marginTop: 14, width: '100%', textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+        <button
+          type="button"
+          onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); }}
+          style={{ marginTop: 16, width: '100%', textAlign: 'center', color: 'var(--text-dim)', fontSize: 14, padding: 8 }}
+        >
           {mode === 'signin' ? 'New here? Create an account' : 'Have an account? Sign in'}
         </button>
       </div>
