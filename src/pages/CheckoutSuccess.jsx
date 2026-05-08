@@ -7,19 +7,22 @@ export default function CheckoutSuccess() {
   const navigate = useNavigate();
   const user = useStore((s) => s.user);
   const profile = useStore((s) => s.profile);
-  const saveProfile = useStore((s) => s.saveProfile);
 
   useEffect(() => {
-    // Demo / fallback: if Stripe wasn't actually configured, the user still
-    // arrives here. Activate locally so they can preview the app.
-    // The real webhook handles activation server-side when Stripe is wired.
+    // The real Stripe webhook activates subscription_status server-side. We
+    // intentionally don't PATCH it from here — /api/profile blocks self-set
+    // of subscription fields (security). For preview purposes, we set local
+    // store state without persisting it.
     if (!user) return;
     const expires = new Date();
     expires.setFullYear(expires.getFullYear() + 1);
-    saveProfile({
-      subscription_status: 'active',
-      subscription_expires: expires.toISOString(),
-    });
+    useStore.setState((s) => ({
+      profile: {
+        ...(s.profile || {}),
+        subscription_status: 'active',
+        subscription_expires: expires.toISOString(),
+      },
+    }));
   }, [user]);
 
   const goNext = () => {

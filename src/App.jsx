@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import Sidebar from './components/Sidebar.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import Navbar from './components/Navbar.jsx';
@@ -53,37 +52,40 @@ function RequireAuth({ children }) {
   return children;
 }
 
+function PageLoader() {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      display: 'grid', placeItems: 'center',
+      background: 'var(--bg)',
+      zIndex: 1,
+    }}>
+      <div className="brand-mark" style={{ width: 44, height: 44, fontSize: 18, animation: 'pulse 1.4s ease-in-out infinite' }}>G</div>
+    </div>
+  );
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
-      >
-        <Suspense fallback={<div style={{ padding: 40 }} className="muted">Loading…</div>}>
-          <Routes location={location}>
-            <Route path="/" element={<PublicFrame><Landing /></PublicFrame>} />
-            <Route path="/checkout" element={<PublicFrame><Checkout /></PublicFrame>} />
-            <Route path="/checkout-success" element={<PublicFrame><CheckoutSuccess /></PublicFrame>} />
-            <Route path="/checkout-cancel" element={<PublicFrame><CheckoutCancel /></PublicFrame>} />
-            <Route path="/onboarding" element={<PublicFrame><Onboarding /></PublicFrame>} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes location={location}>
+        <Route path="/" element={<PublicFrame><Landing /></PublicFrame>} />
+        <Route path="/checkout" element={<PublicFrame><Checkout /></PublicFrame>} />
+        <Route path="/checkout-success" element={<PublicFrame><CheckoutSuccess /></PublicFrame>} />
+        <Route path="/checkout-cancel" element={<PublicFrame><CheckoutCancel /></PublicFrame>} />
+        <Route path="/onboarding" element={<PublicFrame><Onboarding /></PublicFrame>} />
 
-            <Route path="/dashboard" element={<RequireAuth><PageFrame><Dashboard /></PageFrame></RequireAuth>} />
-            <Route path="/workout" element={<RequireAuth><PageFrame><Workout /></PageFrame></RequireAuth>} />
-            <Route path="/progress" element={<RequireAuth><PageFrame><Progress /></PageFrame></RequireAuth>} />
-            <Route path="/nutrition" element={<RequireAuth><PageFrame><Nutrition /></PageFrame></RequireAuth>} />
-            <Route path="/community" element={<RequireAuth><PageFrame><Community /></PageFrame></RequireAuth>} />
-            <Route path="/profile" element={<RequireAuth><PageFrame><Profile /></PageFrame></RequireAuth>} />
+        <Route path="/dashboard" element={<RequireAuth><PageFrame><Dashboard /></PageFrame></RequireAuth>} />
+        <Route path="/workout" element={<RequireAuth><PageFrame><Workout /></PageFrame></RequireAuth>} />
+        <Route path="/progress" element={<RequireAuth><PageFrame><Progress /></PageFrame></RequireAuth>} />
+        <Route path="/nutrition" element={<RequireAuth><PageFrame><Nutrition /></PageFrame></RequireAuth>} />
+        <Route path="/community" element={<RequireAuth><PageFrame><Community /></PageFrame></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><PageFrame><Profile /></PageFrame></RequireAuth>} />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   );
 }
 
@@ -94,15 +96,21 @@ export default function App() {
 
   useEffect(() => {
     initSession();
-    const onOnline = () => flushQueue();
+    const setOnline = (v) => useStore.setState({ online: v });
+    const onOnline = () => { setOnline(true); flushQueue(); };
+    const onOffline = () => setOnline(false);
     window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener?.('message', (e) => {
         if (e.data?.type === 'flush-sync-queue') flushQueue();
       });
     }
-    return () => window.removeEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
   }, [initSession, flushQueue]);
 
   return <AnimatedRoutes />;

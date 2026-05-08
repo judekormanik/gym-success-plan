@@ -469,13 +469,14 @@ input, textarea, select {
 .text-center { text-align: center; }
 .full { width: 100%; }
 
-/* breakpoint visibility helpers */
-.show-md { display: none; }
-@media (min-width: 768px) {
-  .show-md { display: revert; }
-  .hide-md { display: none; }
+/* breakpoint visibility helpers — use max-width so we don't override
+   display values set by other classes (e.g. .row { display: flex }) */
+@media (max-width: 767.98px) {
+  .show-md { display: none !important; }
 }
-.hide-sm { display: none; }
-@media (min-width: 640px) {
-  .hide-sm { display: revert; }
+@media (min-width: 768px) {
+  .hide-md { display: none !important; }
+}
+@media (max-width: 639.98px) {
+  .hide-sm { display: none !important; }
 }
