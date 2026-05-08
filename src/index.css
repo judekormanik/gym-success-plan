@@ -345,16 +345,40 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  padding-top: calc(12px + var(--safe-top));
+  padding: 14px 16px;
+  padding-top: calc(18px + var(--safe-top));
+  padding-bottom: 14px;
   position: sticky;
   top: 0;
   background: rgba(10,10,10,0.85);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
   z-index: 30;
+  margin-bottom: 4px;
 }
 @media (min-width: 1024px) { .topbar { display: none; } }
+
+/* Public-page (landing/checkout) sticky header */
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10, 10, 10, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding-top: var(--safe-top);
+}
+.public-header-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 
 /* ───────────── Misc ───────────── */
 .skeleton {

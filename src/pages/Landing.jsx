@@ -26,13 +26,8 @@ export default function Landing() {
 function Header() {
   const [open, setOpen] = useState(false);
   return (
-    <header style={{
-      position: 'sticky', top: 0, zIndex: 50,
-      borderBottom: '1px solid var(--border)',
-      background: 'rgba(10,10,10,0.7)',
-      backdropFilter: 'blur(12px)',
-    }}>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <header className="public-header">
+      <div className="public-header-inner">
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div className="brand-mark" style={{ width: 28, height: 28, fontSize: 13, flexShrink: 0 }}>G</div>
           <div style={{ fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 14 }}>
@@ -149,7 +144,7 @@ function LoginModal({ onClose }) {
 
 function Hero() {
   return (
-    <section style={{ padding: '56px 16px 48px', textAlign: 'center', maxWidth: 980, margin: '0 auto' }}>
+    <section style={{ padding: '40px 16px 48px', textAlign: 'center', maxWidth: 980, margin: '0 auto' }}>
       <motion.div
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
       >
