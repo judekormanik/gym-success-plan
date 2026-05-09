@@ -1,34 +1,60 @@
-import { useState } from 'react';
-import { Plus, Trash2, UtensilsCrossed, BookmarkPlus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Plus, Trash2, UtensilsCrossed, Coffee, Utensils, Moon, Cookie } from 'lucide-react';
 import useNutrition from '../hooks/useNutrition.js';
 import MacroRings from '../components/MacroRings.jsx';
 import EmptyState from '../components/EmptyState.jsx';
 import FoodSearch from '../components/FoodSearch.jsx';
+import WaterTracker from '../components/WaterTracker.jsx';
 import useStore from '../store/useStore.js';
-import { formatRelative } from '../utils/calculations.js';
+import { dateKey, formatRelative, sumMacros } from '../utils/calculations.js';
 
-const SAVED_MEALS = [
-  { name: 'Greek yogurt + berries', calories: 240, protein: 22, carbs: 28, fats: 4 },
-  { name: 'Chicken bowl', calories: 620, protein: 55, carbs: 60, fats: 18 },
-  { name: 'Eggs + toast', calories: 420, protein: 28, carbs: 30, fats: 20 },
-  { name: 'Whey shake', calories: 180, protein: 30, carbs: 6, fats: 3 },
+const MEALS = [
+  { id: 'breakfast', label: 'Breakfast', Icon: Coffee },
+  { id: 'lunch',     label: 'Lunch',     Icon: Utensils },
+  { id: 'dinner',    label: 'Dinner',    Icon: Moon },
+  { id: 'snack',     label: 'Snacks',    Icon: Cookie },
 ];
+
+function defaultMealForNow(d = new Date()) {
+  const h = d.getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 21) return 'dinner';
+  return 'snack';
+}
 
 export default function NutritionPage() {
   const { totals, targets, todays, logFood, removeFood } = useNutrition();
   const profile = useStore((s) => s.profile);
   const pushToast = useStore((s) => s.pushToast);
 
+  const [activeMeal, setActiveMeal] = useState(defaultMealForNow());
   const [form, setForm] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+
+  // Group today's entries by meal type. Items without meal_type land under "snack"
+  // for legacy compatibility.
+  const buckets = useMemo(() => {
+    const out = { breakfast: [], lunch: [], dinner: [], snack: [] };
+    todays.forEach((e) => {
+      const k = MEALS.find((m) => m.id === e.meal_type) ? e.meal_type : 'snack';
+      out[k].push(e);
+    });
+    return out;
+  }, [todays]);
 
   const submit = () => {
     if (!form.name || !form.calories) {
       pushToast('Add a name and calories', 'error');
       return;
     }
-    logFood(form);
+    logFood({ ...form, meal_type: activeMeal });
     setForm({ name: '', calories: '', protein: '', carbs: '', fats: '' });
     pushToast('Logged', 'success');
+  };
+
+  const handleSearchPick = (food) => {
+    logFood({ ...food, meal_type: activeMeal });
+    pushToast(`Logged to ${activeMeal}`, 'success');
   };
 
   return (
@@ -40,18 +66,15 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      <div className="card-row cols-2 mb-6" style={{ alignItems: 'stretch' }}>
+      <div className="card-row cols-3 mb-6" style={{ alignItems: 'stretch' }}>
         <div className="card" style={{ padding: 24 }}>
-          <div className="row-between mb-4">
-            <div>
-              <div className="eyebrow">Calorie target</div>
-              <div className="h2 mono" style={{ marginTop: 4 }}>
-                {Math.round(totals.calories)}<span className="muted" style={{ fontSize: 16 }}> / {targets.calories || '—'} kcal</span>
-              </div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                Goal: {profile?.goal || 'set in profile'} · BMR {profile?.bmr || '—'}
-              </div>
-            </div>
+          <div className="eyebrow mb-2">Calorie target</div>
+          <div className="h2 mono" style={{ marginTop: 4 }}>
+            {Math.round(totals.calories)}
+            <span className="muted" style={{ fontSize: 16 }}> / {targets.calories || '—'} kcal</span>
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            Goal: {profile?.goal || '—'} · BMR {profile?.bmr || '—'}
           </div>
           <div style={{ height: 6, background: '#0e0e0e', borderRadius: 999, overflow: 'hidden', marginTop: 16 }}>
             <div style={{
@@ -65,25 +88,53 @@ export default function NutritionPage() {
           <div className="eyebrow mb-4">Macros</div>
           <MacroRings totals={totals} targets={targets} />
         </div>
+
+        <WaterTracker />
       </div>
 
-      <div className="card mb-6" style={{ padding: 20 }}>
-        <div className="eyebrow mb-4">Search foods · or scan a barcode</div>
-        <FoodSearch
-          onPick={(food) => {
-            logFood({
-              name: food.food_name,
-              calories: food.calories,
-              protein: food.protein,
-              carbs: food.carbs,
-              fats: food.fats,
-            });
-            pushToast('Logged', 'success');
-          }}
-        />
+      {/* Meal tabs */}
+      <div className="row" style={{ gap: 6, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
+        {MEALS.map((m) => {
+          const subtotal = sumMacros(buckets[m.id] || []);
+          const active = activeMeal === m.id;
+          return (
+            <button
+              key={m.id}
+              onClick={() => setActiveMeal(m.id)}
+              className="row gap-2"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 999,
+                background: active ? 'var(--gold)' : 'var(--surface-2)',
+                color: active ? '#0a0a0a' : 'var(--text-dim)',
+                border: '1px solid ' + (active ? 'var(--gold)' : 'var(--border)'),
+                fontWeight: active ? 600 : 500,
+                fontSize: 13,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              <m.Icon size={14} />
+              {m.label}
+              {(buckets[m.id]?.length || 0) > 0 && (
+                <span className="mono" style={{ opacity: 0.8, fontSize: 11 }}>
+                  · {Math.round(subtotal.calories)} kcal
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="card-row cols-2 mb-6">
+        <div className="card" style={{ padding: 20 }}>
+          <div className="eyebrow mb-4">Search foods · or scan a barcode</div>
+          <FoodSearch onPick={handleSearchPick} />
+          <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>
+            Adding to: <b style={{ color: 'var(--gold)' }}>{MEALS.find((m) => m.id === activeMeal)?.label}</b>
+          </div>
+        </div>
+
         <div className="card" style={{ padding: 20 }}>
           <div className="eyebrow mb-4">Quick log (custom)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -94,39 +145,29 @@ export default function NutritionPage() {
               <input className="input" inputMode="numeric" placeholder="C" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: e.target.value })} />
               <input className="input" inputMode="numeric" placeholder="F" value={form.fats} onChange={(e) => setForm({ ...form, fats: e.target.value })} />
             </div>
-            <button className="btn btn-gold" onClick={submit}><Plus size={14} /> Add</button>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: 20 }}>
-          <div className="eyebrow mb-4">Saved meals</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {SAVED_MEALS.map((m) => (
-              <button
-                key={m.name}
-                onClick={() => { logFood(m); pushToast(`Logged ${m.name}`, 'success'); }}
-                className="row-between"
-                style={{ padding: '12px 14px', background: 'var(--surface-2)', borderRadius: 10, textAlign: 'left' }}
-              >
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: 14 }}>{m.name}</div>
-                  <div className="muted" style={{ fontSize: 11 }}>{m.calories} kcal · {m.protein}P {m.carbs}C {m.fats}F</div>
-                </div>
-                <BookmarkPlus size={16} style={{ color: 'var(--text-mute)' }} />
-              </button>
-            ))}
+            <button className="btn btn-gold" onClick={submit}>
+              <Plus size={14} /> Add to {MEALS.find((m) => m.id === activeMeal)?.label.toLowerCase()}
+            </button>
           </div>
         </div>
       </div>
 
+      {/* Active meal log */}
       <div className="card" style={{ padding: 20 }}>
-        <div className="eyebrow mb-4">Today's log</div>
-        {todays.length ? (
+        <div className="row-between mb-4">
+          <div className="eyebrow">{MEALS.find((m) => m.id === activeMeal)?.label} · today</div>
+          {(buckets[activeMeal]?.length || 0) > 0 && (
+            <span className="mono muted" style={{ fontSize: 12 }}>
+              {Math.round(sumMacros(buckets[activeMeal]).calories)} kcal · {Math.round(sumMacros(buckets[activeMeal]).protein)}P
+            </span>
+          )}
+        </div>
+        {(buckets[activeMeal]?.length || 0) > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {todays.map((e) => (
+            {buckets[activeMeal].map((e) => (
               <div key={e.id} className="row-between" style={{ padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 10 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{e.food_name}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.food_name}</div>
                   <div className="muted" style={{ fontSize: 11 }}>{formatRelative(e.logged_at)} · {e.protein}P {e.carbs}C {e.fats}F</div>
                 </div>
                 <div className="row gap-2">
@@ -137,7 +178,7 @@ export default function NutritionPage() {
             ))}
           </div>
         ) : (
-          <EmptyState icon={UtensilsCrossed} title="Nothing logged yet" body="Add your first meal of the day above." />
+          <EmptyState icon={UtensilsCrossed} title="Nothing here yet" body={`Search or quick-log to add to ${MEALS.find((m) => m.id === activeMeal)?.label.toLowerCase()}.`} />
         )}
       </div>
     </div>

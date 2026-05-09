@@ -1,15 +1,39 @@
 import { GOALS } from './constants.js';
 
-// Mifflin-St Jeor (defaulting to male formula; refined later via profile sex if added)
+// Mifflin-St Jeor BMR. Male: +5, Female: -161, "other" averages the two.
 export function calcBMR({ weightKg, heightCm, age = 30, sex = 'm' }) {
   if (!weightKg || !heightCm) return 0;
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  return Math.round(sex === 'f' ? base - 161 : base + 5);
+  if (sex === 'f') return Math.round(base - 161);
+  if (sex === 'o') return Math.round(base - 78);
+  return Math.round(base + 5);
 }
 
-export function calcCalorieTarget(bmr, goalId) {
+export const ACTIVITY_LEVELS = [
+  { id: 'sedentary',   label: 'Sedentary',          mult: 1.2,    desc: 'Little or no exercise' },
+  { id: 'light',       label: 'Lightly active',     mult: 1.375,  desc: '1-3 sessions / week' },
+  { id: 'moderate',    label: 'Moderately active',  mult: 1.55,   desc: '3-5 sessions / week' },
+  { id: 'very',        label: 'Very active',        mult: 1.725,  desc: '6-7 sessions / week' },
+  { id: 'athlete',     label: 'Athlete',            mult: 1.9,    desc: 'Hard daily training' },
+];
+
+export function activityMultiplier(id) {
+  const a = ACTIVITY_LEVELS.find((x) => x.id === id);
+  return a ? a.mult : 1.55;
+}
+
+// TDEE = BMR × activity multiplier. Falls back to BMR if no activity set.
+export function calcTDEE(bmr, activityLevel) {
+  if (!bmr) return 0;
+  return Math.round(bmr * activityMultiplier(activityLevel));
+}
+
+// Goal-adjusted daily calorie target. Goes off TDEE when activity is known,
+// otherwise off BMR (legacy behaviour).
+export function calcCalorieTarget(bmr, goalId, activityLevel) {
+  const base = activityLevel ? calcTDEE(bmr, activityLevel) : (bmr || 0);
   const goal = GOALS.find((g) => g.id === goalId) || GOALS[1];
-  return Math.max(1200, Math.round((bmr || 0) + goal.delta));
+  return Math.max(1200, Math.round(base + goal.delta));
 }
 
 export function calcMacroTargets({ calories = 0, weightKg = 0, goalId = 'maintain' }) {

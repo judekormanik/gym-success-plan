@@ -5,8 +5,10 @@ import { ArrowRight, Smartphone, ChevronUp, Check } from 'lucide-react';
 import useStore from '../store/useStore.js';
 import usePWA from '../hooks/usePWA.js';
 import { GOALS, EXPERIENCE } from '../utils/constants.js';
+import { ACTIVITY_LEVELS } from '../utils/calculations.js';
+import { toMetricWeight, toMetricLength, WEIGHT_UNIT_LABEL, LENGTH_UNIT_LABEL } from '../utils/units.js';
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -21,14 +23,27 @@ export default function Onboarding() {
   const [weight, setWeight] = useState(profile?.weight || '');
   const [height, setHeight] = useState(profile?.height || '');
   const [experience, setExperience] = useState(profile?.experience || '');
+  const [age, setAge] = useState(profile?.age || '');
+  const [sex, setSex] = useState(profile?.sex || '');
+  const [activity, setActivity] = useState(profile?.activity_level || 'moderate');
+  const [units, setUnits] = useState(profile?.units || 'metric');
 
   const next = () => setStep((s) => Math.min(TOTAL_STEPS, s + 1));
   const back = () => setStep((s) => Math.max(1, s - 1));
 
   const finishOnboarding = async () => {
+    const weightKg = toMetricWeight(weight, units);
+    const heightCm = toMetricLength(height, units);
     await saveProfile({
-      name, goal, weight: Number(weight), height: Number(height),
-      experience, onboarded: true,
+      name, goal,
+      weight: weightKg != null ? Number(weightKg.toFixed(1)) : null,
+      height: heightCm != null ? Number(heightCm.toFixed(1)) : null,
+      experience,
+      age: age ? Number(age) : null,
+      sex: sex || null,
+      activity_level: activity || null,
+      units,
+      onboarded: true,
     });
     navigate('/dashboard');
   };
@@ -44,7 +59,7 @@ export default function Onboarding() {
 
   const skipInstall = () => finishOnboarding();
 
-  if (step === 5 && (standalone || pwaInstalled)) {
+  if (step === TOTAL_STEPS && (standalone || pwaInstalled)) {
     finishOnboarding();
     return null;
   }
@@ -52,9 +67,10 @@ export default function Onboarding() {
   const canAdvance =
     (step === 1 && name.trim()) ||
     (step === 2 && goal) ||
-    (step === 3 && weight && height) ||
-    (step === 4 && experience) ||
-    step === 5;
+    (step === 3 && weight && height && age && sex) ||
+    (step === 4 && activity) ||
+    (step === 5 && experience) ||
+    step === TOTAL_STEPS;
 
   return (
     <div style={{
@@ -125,21 +141,93 @@ export default function Onboarding() {
               )}
 
               {step === 3 && (
-                <Step title="Your stats" subtitle="We'll calibrate your calories from here.">
+                <Step title="Your stats" subtitle="We'll calibrate calories and macros from here.">
+                  {/* Units segmented control */}
+                  <div className="row" style={{ gap: 6, marginBottom: 14 }}>
+                    {[
+                      { id: 'metric', label: 'Metric (kg / cm)' },
+                      { id: 'imperial', label: 'Imperial (lb / in)' },
+                    ].map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setUnits(u.id)}
+                        className="pill"
+                        style={{
+                          cursor: 'pointer', flex: 1, padding: '8px 10px', fontSize: 12,
+                          background: units === u.id ? 'var(--gold)' : 'var(--surface-2)',
+                          color: units === u.id ? '#0a0a0a' : 'var(--text-dim)',
+                          borderColor: units === u.id ? 'var(--gold)' : 'var(--border)',
+                          fontWeight: units === u.id ? 600 : 500,
+                          justifyContent: 'center',
+                        }}
+                      >{u.label}</button>
+                    ))}
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label className="label">Weight (kg)</label>
-                      <input className="input" type="number" inputMode="decimal" placeholder="80" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                      <label className="label">Weight ({WEIGHT_UNIT_LABEL(units)})</label>
+                      <input className="input" type="number" inputMode="decimal"
+                        placeholder={units === 'imperial' ? '180' : '80'}
+                        value={weight} onChange={(e) => setWeight(e.target.value)} />
                     </div>
                     <div>
-                      <label className="label">Height (cm)</label>
-                      <input className="input" type="number" inputMode="decimal" placeholder="180" value={height} onChange={(e) => setHeight(e.target.value)} />
+                      <label className="label">Height ({LENGTH_UNIT_LABEL(units)})</label>
+                      <input className="input" type="number" inputMode="decimal"
+                        placeholder={units === 'imperial' ? '70' : '180'}
+                        value={height} onChange={(e) => setHeight(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">Age</label>
+                      <input className="input" type="number" inputMode="numeric" min={13} max={100}
+                        placeholder="30" value={age} onChange={(e) => setAge(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label">Sex (for BMR formula)</label>
+                      <div className="row" style={{ gap: 4 }}>
+                        {[
+                          { id: 'm', label: 'Male' },
+                          { id: 'f', label: 'Female' },
+                          { id: 'o', label: 'Other' },
+                        ].map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSex(s.id)}
+                            className="pill"
+                            style={{
+                              flex: 1, cursor: 'pointer', justifyContent: 'center',
+                              padding: '8px 0', fontSize: 12,
+                              background: sex === s.id ? 'var(--gold)' : 'var(--surface-2)',
+                              color: sex === s.id ? '#0a0a0a' : 'var(--text-dim)',
+                              borderColor: sex === s.id ? 'var(--gold)' : 'var(--border)',
+                              fontWeight: sex === s.id ? 600 : 500,
+                            }}
+                          >{s.label}</button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </Step>
               )}
 
               {step === 4 && (
+                <Step title="Activity level" subtitle="Outside of training. We'll set your daily target accordingly.">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {ACTIVITY_LEVELS.map((a) => (
+                      <ChoiceCard
+                        key={a.id}
+                        active={activity === a.id}
+                        onClick={() => setActivity(a.id)}
+                        title={a.label}
+                        body={a.desc}
+                      />
+                    ))}
+                  </div>
+                </Step>
+              )}
+
+              {step === 5 && (
                 <Step title="Experience" subtitle="So we know how to scale progression.">
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {EXPERIENCE.map((e) => (
@@ -155,7 +243,7 @@ export default function Onboarding() {
                 </Step>
               )}
 
-              {step === 5 && (
+              {step === 6 && (
                 <Step
                   title="Get the full app experience"
                   subtitle="Add The Gym Success Plan to your home screen for instant access, offline tracking, and a native app feel."
@@ -210,7 +298,7 @@ export default function Onboarding() {
         </div>
       </div>
 
-      {step < 5 && (
+      {step < TOTAL_STEPS && (
         <div style={{
           position: 'sticky',
           bottom: 0,

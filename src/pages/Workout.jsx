@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Timer, ChevronLeft, Check, Plus, BookOpen, Trash2, Pencil } from 'lucide-react';
+import { Timer, ChevronLeft, Check, Plus, BookOpen, Trash2, Pencil, Calculator } from 'lucide-react';
 import useWorkout from '../hooks/useWorkout.js';
 import useStore from '../store/useStore.js';
 import WorkoutCard from '../components/WorkoutCard.jsx';
 import ExerciseRow from '../components/ExerciseRow.jsx';
 import ExerciseTile from '../components/ExerciseTile.jsx';
+import RestTimer from '../components/RestTimer.jsx';
+import PlateCalculator from '../components/PlateCalculator.jsx';
 import { PLAN } from '../utils/constants.js';
 import { exerciseById } from '../utils/exerciseLibrary.js';
 import { isPersonalRecord } from '../utils/calculations.js';
@@ -21,6 +23,8 @@ export default function WorkoutPage() {
   const logPR = useStore((s) => s.logPR);
   const pushToast = useStore((s) => s.pushToast);
 
+  const profile = useStore((s) => s.profile);
+
   const [tab, setTab] = useState('plan'); // plan | mine
   const [activeDay, setActiveDay] = useState(todayPlan.day);
   const [activeCustomId, setActiveCustomId] = useState(null);
@@ -29,6 +33,9 @@ export default function WorkoutPage() {
   const [collected, setCollected] = useState([]);
   const [notes, setNotes] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [restKey, setRestKey] = useState(0);   // increments on every set complete
+  const [restSeconds, setRestSeconds] = useState(60);
+  const [plateOpen, setPlateOpen] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -79,6 +86,13 @@ export default function WorkoutPage() {
     setCollected((c) => [...c, row]);
     pushToast(isPR ? `New PR · ${data.exercise}` : 'Set saved', isPR ? 'success' : 'default');
     if (isPR) logPR({ exercise_name: data.exercise, weight: Number(data.weight), reps: Number(data.reps) });
+
+    // Auto-start rest timer. Use the per-exercise rest if set, else default.
+    const ex = activeSession?.exercises.find((e) => e.name === data.exercise);
+    if (ex && ex.restSeconds != null && Number(ex.restSeconds) > 0) {
+      setRestSeconds(Number(ex.restSeconds));
+    }
+    setRestKey((k) => k + 1);
   };
 
   const finish = async () => {
@@ -106,8 +120,13 @@ export default function WorkoutPage() {
                 <ChevronLeft size={14} /> Cancel
               </button>
               <div className="row gap-2">
-                <Timer size={14} style={{ color: 'var(--gold)' }} />
-                <span className="mono" style={{ fontWeight: 600 }}>{formatTime(elapsed)}</span>
+                <button onClick={() => setPlateOpen(true)} className="btn btn-quiet btn-sm" title="Plate calculator">
+                  <Calculator size={14} /> Plates
+                </button>
+                <div className="row gap-2" style={{ background: 'var(--surface)', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)' }}>
+                  <Timer size={14} style={{ color: 'var(--gold)' }} />
+                  <span className="mono" style={{ fontWeight: 600 }}>{formatTime(elapsed)}</span>
+                </div>
               </div>
             </div>
 
@@ -153,8 +172,20 @@ export default function WorkoutPage() {
             <button onClick={finish} className="btn btn-gold btn-lg btn-block" style={{ marginTop: 18 }}>
               <Check size={16} /> Finish session ({collected.length} set{collected.length === 1 ? '' : 's'})
             </button>
+
+            <RestTimer
+              defaultSeconds={restSeconds}
+              triggerKey={restKey}
+              onComplete={() => pushToast('Rest done — next set!', 'success')}
+            />
           </motion.div>
         </AnimatePresence>
+
+        <PlateCalculator
+          open={plateOpen}
+          onClose={() => setPlateOpen(false)}
+          units={profile?.units || 'metric'}
+        />
       </div>
     );
   }

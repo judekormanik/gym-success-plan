@@ -72,6 +72,20 @@ export const api = {
   searchFoods: (q) => call('/api/foods/search', { params: { q } }),
   lookupBarcode: (code) => call('/api/foods/barcode', { params: { code } }),
 
+  // ── Body measurements ──
+  listMeasurements: () => call('/api/body-measurements'),
+  addMeasurement: (m) => call('/api/body-measurements', { method: 'POST', body: m }),
+  removeMeasurement: (id) => call('/api/body-measurements', { method: 'DELETE', params: { id } }),
+
+  // ── Water ──
+  getWater: () => call('/api/water'),
+  addWater: (ml) => call('/api/water', { method: 'POST', body: { ml } }),
+  removeWater: (id) => call('/api/water', { method: 'DELETE', params: { id } }),
+
+  // ── Auth maintenance ──
+  changePassword: (current, next) => call('/api/auth/change-password', { method: 'POST', body: { current, next } }),
+  deleteAccount: (password) => call('/api/auth/delete-account', { method: 'POST', body: { password } }),
+
   // ── Subscription verify ──
   verifySubscription: (email) => call('/verify-subscription', { params: { email } }),
 };

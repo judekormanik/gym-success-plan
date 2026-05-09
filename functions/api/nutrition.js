@@ -15,18 +15,20 @@ export async function onRequestPost({ request, env, data }) {
   if (!body.food_name) return bad('food_name required');
   const id = uuid();
   const now = new Date().toISOString();
+  const mealType = ['breakfast', 'lunch', 'dinner', 'snack'].includes(body.meal_type) ? body.meal_type : null;
   await env.DB.prepare(
-    'INSERT INTO nutrition_log (id, user_id, food_name, calories, protein, carbs, fats, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO nutrition_log (id, user_id, food_name, calories, protein, carbs, fats, meal_type, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
   ).bind(
     id, data.user.id, body.food_name,
     Number(body.calories) || 0, Number(body.protein) || 0,
-    Number(body.carbs) || 0, Number(body.fats) || 0, now
+    Number(body.carbs) || 0, Number(body.fats) || 0, mealType, now
   ).run();
   return json({
     entry: {
       id, user_id: data.user.id, food_name: body.food_name,
       calories: Number(body.calories) || 0, protein: Number(body.protein) || 0,
-      carbs: Number(body.carbs) || 0, fats: Number(body.fats) || 0, logged_at: now,
+      carbs: Number(body.carbs) || 0, fats: Number(body.fats) || 0,
+      meal_type: mealType, logged_at: now,
     },
   });
 }

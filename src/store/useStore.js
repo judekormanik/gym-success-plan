@@ -16,6 +16,14 @@ const newId = () =>
     ? crypto.randomUUID()
     : 'id-' + Math.random().toString(36).slice(2);
 
+function mealTypeForNow(d = new Date()) {
+  const h = d.getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 21) return 'dinner';
+  return 'snack';
+}
+
 function normalizeExerciseList(exercises = []) {
   return exercises.map((e) => {
     const out = { exerciseId: String(e.exerciseId || ''), sets: Number(e.sets) || 3 };
@@ -53,6 +61,9 @@ const useStore = create(
       comments: {},
       photos: [],
       customWorkouts: [],
+      measurements: [],
+      waterEntries: [],
+      waterTodayMl: 0,
 
       // ── UI ──
       toasts: [],
@@ -162,7 +173,7 @@ const useStore = create(
         if (!get().user) return;
         set({ syncing: true });
         try {
-          const [w, prs, bw, nut, posts, photos, custom] = await Promise.all([
+          const [w, prs, bw, nut, posts, photos, custom, meas, water] = await Promise.all([
             api.listWorkouts(),
             api.listPRs(),
             api.listBodyWeight(),
@@ -170,6 +181,8 @@ const useStore = create(
             api.listPosts(),
             api.listPhotos(),
             api.listCustomWorkouts().catch(() => ({ workouts: [] })),
+            api.listMeasurements().catch(() => ({ measurements: [] })),
+            api.getWater().catch(() => ({ entries: [], todayMl: 0 })),
           ]);
           set({
             workouts: w.workouts || [],
@@ -180,6 +193,9 @@ const useStore = create(
             posts: posts.posts || SEED_POSTS,
             photos: photos.photos || [],
             customWorkouts: custom.workouts || [],
+            measurements: meas.measurements || [],
+            waterEntries: water.entries || [],
+            waterTodayMl: water.todayMl || 0,
             syncing: false,
             lastSyncedAt: new Date().toISOString(),
           });
@@ -189,6 +205,8 @@ const useStore = create(
             bodyWeight: bw.body_weight, nutrition: nut.nutrition,
             posts: posts.posts, photos: photos.photos,
             customWorkouts: custom.workouts,
+            measurements: meas.measurements,
+            waterEntries: water.entries,
           });
         } catch {
           set({ syncing: false });
@@ -302,6 +320,7 @@ const useStore = create(
       // Nutrition
       // ════════════════════════════════════════════════════
       logFood: async (food) => {
+        const mealType = food.meal_type || mealTypeForNow();
         const optimistic = {
           id: newId(), user_id: get().user?.id || 'guest',
           food_name: food.name || food.food_name,
@@ -309,12 +328,34 @@ const useStore = create(
           protein: Number(food.protein) || 0,
           carbs: Number(food.carbs) || 0,
           fats: Number(food.fats) || 0,
+          meal_type: mealType,
           logged_at: new Date().toISOString(),
         };
         set((s) => ({ nutrition: [optimistic, ...s.nutrition] }));
         if (!get().user) return;
-        try { await api.addFood({ ...food, food_name: food.name || food.food_name }); }
-        catch { get().queueChange({ kind: 'food', payload: food }); }
+        try { await api.addFood({ ...food, food_name: food.name || food.food_name, meal_type: mealType }); }
+        catch { get().queueChange({ kind: 'food', payload: { ...food, meal_type: mealType } }); }
+      },
+
+      // ── Water ──
+      logWater: async (ml) => {
+        const optimistic = { id: newId(), ml: Number(ml), logged_at: new Date().toISOString() };
+        set((s) => ({
+          waterEntries: [optimistic, ...s.waterEntries],
+          waterTodayMl: Math.max(0, (s.waterTodayMl || 0) + Number(ml)),
+        }));
+        if (!get().user) return;
+        try { await api.addWater(Number(ml)); }
+        catch { get().queueChange({ kind: 'water', payload: { ml: Number(ml) } }); }
+      },
+
+      // ── Body measurements ──
+      logMeasurement: async (m) => {
+        const optimistic = { id: newId(), user_id: get().user?.id || 'guest', ...m, logged_at: new Date().toISOString() };
+        set((s) => ({ measurements: [optimistic, ...s.measurements] }));
+        if (!get().user) return;
+        try { await api.addMeasurement(m); }
+        catch { get().queueChange({ kind: 'measurement', payload: m }); }
       },
       removeFood: async (id) => {
         set((s) => ({ nutrition: s.nutrition.filter((n) => n.id !== id) }));
@@ -393,6 +434,8 @@ const useStore = create(
             else if (c.kind === 'photo') await api.addPhoto(c.payload.photoUrl, c.payload.notes);
             else if (c.kind === 'custom_workout') await api.saveCustomWorkout(c.payload);
             else if (c.kind === 'custom_workout_update') await api.updateCustomWorkout(c.payload.id, c.payload);
+            else if (c.kind === 'water') await api.addWater(c.payload.ml);
+            else if (c.kind === 'measurement') await api.addMeasurement(c.payload);
           } catch {
             remaining.push(c);
           }

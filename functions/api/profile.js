@@ -5,6 +5,7 @@ const ALLOWED = [
   'name', 'goal', 'weight', 'height', 'experience', 'bmr', 'calorie_target',
   'current_streak', 'longest_streak', 'last_workout_date',
   'pwa_installed', 'onboarded',
+  'age', 'sex', 'activity_level', 'units', 'water_target_ml',
 ];
 
 export async function onRequestGet({ data }) {

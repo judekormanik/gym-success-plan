@@ -29,6 +29,11 @@ CREATE TABLE IF NOT EXISTS users (
   last_workout_date     TEXT,
   pwa_installed         INTEGER DEFAULT 0,
   onboarded             INTEGER DEFAULT 0,
+  age                   INTEGER,
+  sex                   TEXT,
+  activity_level        TEXT,
+  units                 TEXT DEFAULT 'metric',
+  water_target_ml       INTEGER DEFAULT 2500,
   created_at            TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -88,6 +93,7 @@ CREATE TABLE IF NOT EXISTS nutrition_log (
   protein   REAL DEFAULT 0,
   carbs     REAL DEFAULT 0,
   fats      REAL DEFAULT 0,
+  meal_type TEXT,
   logged_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_nutrition_user ON nutrition_log(user_id, logged_at DESC);
@@ -113,6 +119,33 @@ CREATE TABLE IF NOT EXISTS community_comments (
   created_at  TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post ON community_comments(post_id, created_at);
+
+-- ---------------- BODY MEASUREMENTS ----------------
+CREATE TABLE IF NOT EXISTS body_measurements (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  chest        REAL,
+  waist        REAL,
+  hips         REAL,
+  left_arm     REAL,
+  right_arm    REAL,
+  left_thigh   REAL,
+  right_thigh  REAL,
+  neck         REAL,
+  calf         REAL,
+  notes        TEXT,
+  logged_at    TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_meas_user ON body_measurements(user_id, logged_at DESC);
+
+-- ---------------- WATER LOG ----------------
+CREATE TABLE IF NOT EXISTS water_log (
+  id        TEXT PRIMARY KEY,
+  user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ml        INTEGER NOT NULL,
+  logged_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_water_user ON water_log(user_id, logged_at DESC);
 
 -- ---------------- CUSTOM WORKOUTS ----------------
 -- exercises is a JSON-encoded array of {exerciseId, sets} objects.
