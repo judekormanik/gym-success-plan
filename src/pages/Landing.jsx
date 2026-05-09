@@ -10,10 +10,12 @@ import { APP_NAME, APP_TAGLINE, PRICE_USD, MONTHLY_EQ } from '../utils/constants
 export default function Landing() {
   const user = useStore((s) => s.user);
   const profile = useStore((s) => s.profile);
+  const bootstrapped = useStore((s) => s.bootstrapped);
 
   // Signed-in users skip the marketing page entirely. They only see it again
-  // after explicitly signing out.
-  if (user) {
+  // after explicitly signing out. We wait for the auth bootstrap to finish so
+  // we don't render the full landing page just to redirect away on next tick.
+  if (bootstrapped && user) {
     return <Navigate to={profile?.onboarded ? '/dashboard' : '/onboarding'} replace />;
   }
 

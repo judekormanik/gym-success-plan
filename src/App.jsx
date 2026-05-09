@@ -47,7 +47,14 @@ function PublicFrame({ children }) {
 function RequireAuth({ children }) {
   const user = useStore((s) => s.user);
   const profile = useStore((s) => s.profile);
+  const bootstrapped = useStore((s) => s.bootstrapped);
   const location = useLocation();
+
+  // Wait for the initial session check to resolve before deciding what to do.
+  // Without this guard, a fresh load of /workout/build would briefly see
+  // user=null, redirect to /, and the Landing redirect would then send the
+  // user to /dashboard instead of their intended destination.
+  if (!bootstrapped) return <PageLoader />;
 
   if (!user) return <Navigate to="/" replace state={{ from: location }} />;
   if (profile && !profile.onboarded) return <Navigate to="/onboarding" replace />;
@@ -82,6 +89,7 @@ function AnimatedRoutes() {
         <Route path="/workout" element={<RequireAuth><PageFrame><Workout /></PageFrame></RequireAuth>} />
         <Route path="/workout/library" element={<RequireAuth><PageFrame><Library /></PageFrame></RequireAuth>} />
         <Route path="/workout/build" element={<RequireAuth><PageFrame><Builder /></PageFrame></RequireAuth>} />
+        <Route path="/workout/build/:id" element={<RequireAuth><PageFrame><Builder /></PageFrame></RequireAuth>} />
         <Route path="/progress" element={<RequireAuth><PageFrame><Progress /></PageFrame></RequireAuth>} />
         <Route path="/nutrition" element={<RequireAuth><PageFrame><Nutrition /></PageFrame></RequireAuth>} />
         <Route path="/community" element={<RequireAuth><PageFrame><Community /></PageFrame></RequireAuth>} />

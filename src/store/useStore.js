@@ -16,6 +16,16 @@ const newId = () =>
     ? crypto.randomUUID()
     : 'id-' + Math.random().toString(36).slice(2);
 
+function normalizeExerciseList(exercises = []) {
+  return exercises.map((e) => {
+    const out = { exerciseId: String(e.exerciseId || ''), sets: Number(e.sets) || 3 };
+    if (e.repsTarget) out.repsTarget = String(e.repsTarget);
+    if (e.restSeconds != null && e.restSeconds !== '') out.restSeconds = Number(e.restSeconds) || 0;
+    if (e.notes) out.notes = String(e.notes);
+    return out;
+  });
+}
+
 const SEED_POSTS = [
   { id: 'p1', user_id: 'm1', user_name: 'Marcus T.', content: 'Hit a 405 rack pull today. Stuck at 365 for two months — the structured progression in this app actually works.', likes: 47, created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() },
   { id: 'p2', user_id: 'm2', user_name: 'Sara K.', content: 'Down 6.2kg in 11 weeks holding all my lifts. The macro targets + workout cadence are dialled in.', likes: 92, created_at: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString() },
@@ -28,6 +38,7 @@ const useStore = create(
       // ── Auth / profile ──
       user: null,
       profile: null,
+      bootstrapped: false,    // becomes true once initial /api/auth/me has resolved
       syncing: false,
       lastSyncedAt: null,
       online: typeof navigator === 'undefined' ? true : navigator.onLine,
@@ -87,6 +98,8 @@ const useStore = create(
           }
         } catch {
           // Offline or no session; continue with local cache.
+        } finally {
+          set({ bootstrapped: true });
         }
       },
 
@@ -186,14 +199,13 @@ const useStore = create(
       saveCustomWorkout: async ({ name, description, exercises }) => {
         const optimistic = {
           id: newId(), name, description: description || '',
-          exercises: exercises.map((e) => ({ exerciseId: e.exerciseId, sets: Number(e.sets) || 3 })),
+          exercises: normalizeExerciseList(exercises),
           created_at: new Date().toISOString(),
         };
         set((s) => ({ customWorkouts: [optimistic, ...s.customWorkouts] }));
         if (!get().user) return optimistic;
         try {
           const { workout } = await api.saveCustomWorkout({ name, description, exercises });
-          // Replace optimistic with server-returned canonical version
           set((s) => ({
             customWorkouts: [workout, ...s.customWorkouts.filter((cw) => cw.id !== optimistic.id)],
           }));
@@ -201,6 +213,22 @@ const useStore = create(
         } catch {
           get().queueChange({ kind: 'custom_workout', payload: { name, description, exercises } });
           return optimistic;
+        }
+      },
+
+      updateCustomWorkout: async (id, { name, description, exercises }) => {
+        // Optimistic local update
+        set((s) => ({
+          customWorkouts: s.customWorkouts.map((cw) =>
+            cw.id === id ? { ...cw, name, description: description || '', exercises: normalizeExerciseList(exercises) } : cw
+          ),
+        }));
+        if (!get().user) return;
+        try {
+          const { workout } = await api.updateCustomWorkout(id, { name, description, exercises });
+          set((s) => ({ customWorkouts: s.customWorkouts.map((cw) => cw.id === id ? workout : cw) }));
+        } catch {
+          get().queueChange({ kind: 'custom_workout_update', payload: { id, name, description, exercises } });
         }
       },
 
@@ -364,6 +392,7 @@ const useStore = create(
             else if (c.kind === 'comment') await api.addComment(c.payload.postId, c.payload.content);
             else if (c.kind === 'photo') await api.addPhoto(c.payload.photoUrl, c.payload.notes);
             else if (c.kind === 'custom_workout') await api.saveCustomWorkout(c.payload);
+            else if (c.kind === 'custom_workout_update') await api.updateCustomWorkout(c.payload.id, c.payload);
           } catch {
             remaining.push(c);
           }

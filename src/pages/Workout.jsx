@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Timer, ChevronLeft, Check, Plus, BookOpen, Trash2 } from 'lucide-react';
+import { Timer, ChevronLeft, Check, Plus, BookOpen, Trash2, Pencil } from 'lucide-react';
 import useWorkout from '../hooks/useWorkout.js';
 import useStore from '../store/useStore.js';
 import WorkoutCard from '../components/WorkoutCard.jsx';
@@ -13,6 +13,7 @@ import { isPersonalRecord } from '../utils/calculations.js';
 import PRCelebration from '../components/PRCelebration.jsx';
 
 export default function WorkoutPage() {
+  const navigate = useNavigate();
   const { todayPlan, lastSession, saveWorkout } = useWorkout();
   const sets = useStore((s) => s.sets);
   const customWorkouts = useStore((s) => s.customWorkouts);
@@ -40,16 +41,26 @@ export default function WorkoutPage() {
     if (tab === 'mine' && activeCustomId) {
       const cw = customWorkouts.find((w) => w.id === activeCustomId);
       if (!cw) return null;
-      const exercises = (cw.exercises || []).map((row) => {
+      const exercises = (cw.exercises || []).map((row, i) => {
         const ex = exerciseById(row.exerciseId);
-        return ex ? { name: ex.name, sets: row.sets, exercise: ex } : null;
+        return ex ? {
+          // Use a stable per-instance name so duplicate exercises don't merge
+          // when ExerciseRow keys / set look-ups happen.
+          name: ex.name,
+          displayKey: `${row.exerciseId}-${i}`,
+          sets: row.sets,
+          exercise: ex,
+          repsTarget: row.repsTarget || '',
+          restSeconds: row.restSeconds,
+          notes: row.notes || '',
+        } : null;
       }).filter(Boolean);
       return { day: 0, name: cw.name, kind: 'custom', exercises, customId: cw.id };
     }
     const p = PLAN.find((p) => p.day === activeDay) || todayPlan;
     return {
       day: p.day, name: p.name, kind: 'default',
-      exercises: p.exercises.map((e) => ({ ...e, exercise: null })),
+      exercises: p.exercises.map((e, i) => ({ ...e, displayKey: `${e.name}-${i}`, exercise: null })),
     };
   }, [tab, activeCustomId, activeDay, customWorkouts, todayPlan]);
 
@@ -107,10 +118,22 @@ export default function WorkoutPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {activeSession.exercises.map((ex) => (
-                <div key={ex.name}>
+                <div key={ex.displayKey || ex.name}>
                   {ex.exercise && (
                     <div style={{ marginBottom: 8 }}>
                       <ExerciseTile exercise={ex.exercise} size="sm" />
+                    </div>
+                  )}
+                  {(ex.repsTarget || (ex.restSeconds != null && ex.restSeconds > 0) || ex.notes) && (
+                    <div className="muted" style={{
+                      fontSize: 12, padding: '6px 12px',
+                      background: 'var(--surface-2)', borderRadius: 8, marginBottom: 8,
+                      display: 'flex', flexWrap: 'wrap', gap: 12,
+                    }}>
+                      {ex.repsTarget && <span><b style={{ color: 'var(--gold)' }}>Target:</b> {ex.repsTarget} reps</span>}
+                      {ex.restSeconds != null && ex.restSeconds > 0 &&
+                        <span><b style={{ color: 'var(--gold)' }}>Rest:</b> {ex.restSeconds}s</span>}
+                      {ex.notes && <span style={{ flexBasis: '100%' }}><b style={{ color: 'var(--gold)' }}>Notes:</b> {ex.notes}</span>}
                     </div>
                   )}
                   <ExerciseRow
@@ -217,7 +240,10 @@ export default function WorkoutPage() {
                     workout={cw}
                     active={activeCustomId === cw.id}
                     onPick={() => setActiveCustomId(cw.id)}
-                    onDelete={() => deleteCustomWorkout(cw.id)}
+                    onEdit={() => navigate(`/workout/build/${cw.id}`)}
+                    onDelete={() => {
+                      if (confirm(`Delete "${cw.name}"?`)) deleteCustomWorkout(cw.id);
+                    }}
                   />
                 ))}
               </div>
@@ -234,8 +260,11 @@ export default function WorkoutPage() {
   );
 }
 
-function CustomCard({ workout, active, onPick, onDelete }) {
-  const exs = (workout.exercises || []).slice(0, 3).map((row) => exerciseById(row.exerciseId)).filter(Boolean);
+function CustomCard({ workout, active, onPick, onEdit, onDelete }) {
+  const exs = (workout.exercises || []).slice(0, 3).map((row, i) => ({
+    ex: exerciseById(row.exerciseId),
+    key: `${row.exerciseId}-${i}`,
+  })).filter((x) => x.ex);
   const totalSets = (workout.exercises || []).reduce((a, e) => a + (Number(e.sets) || 0), 0);
   return (
     <div
@@ -250,14 +279,24 @@ function CustomCard({ workout, active, onPick, onDelete }) {
     >
       <div className="row-between" style={{ marginBottom: 10 }}>
         <span className="eyebrow">Custom</span>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="icon-btn"
-          style={{ width: 28, height: 28 }}
-          aria-label="Delete"
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="row gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="icon-btn"
+            style={{ width: 28, height: 28 }}
+            aria-label="Edit"
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="icon-btn"
+            style={{ width: 28, height: 28 }}
+            aria-label="Delete"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
       <div className="h3" style={{ marginBottom: 10 }}>{workout.name}</div>
       {exs.length > 0 && (
@@ -266,7 +305,7 @@ function CustomCard({ workout, active, onPick, onDelete }) {
           gridTemplateColumns: `repeat(${Math.min(3, exs.length)}, 1fr)`,
           gap: 6, marginBottom: 10,
         }}>
-          {exs.map((ex) => <ExerciseTile key={ex.id} exercise={ex} size="sm" />)}
+          {exs.map(({ ex, key }) => <ExerciseTile key={key} exercise={ex} size="sm" />)}
         </div>
       )}
       <div className="muted" style={{ fontSize: 12 }}>
