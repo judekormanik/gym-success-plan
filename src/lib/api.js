@@ -82,6 +82,11 @@ export const api = {
   addWater: (ml) => call('/api/water', { method: 'POST', body: { ml } }),
   removeWater: (id) => call('/api/water', { method: 'DELETE', params: { id } }),
 
+  // ── Favorites ──
+  listFavorites: () => call('/api/favorites'),
+  addFavorite: (exercise_id) => call('/api/favorites', { method: 'POST', body: { exercise_id } }),
+  removeFavorite: (exercise_id) => call('/api/favorites', { method: 'DELETE', params: { exercise_id } }),
+
   // ── Auth maintenance ──
   changePassword: (current, next) => call('/api/auth/change-password', { method: 'POST', body: { current, next } }),
   deleteAccount: (password) => call('/api/auth/delete-account', { method: 'POST', body: { password } }),

@@ -6,6 +6,8 @@
   "description": "The Gym Success Plan — a fitness tracking and community platform.",
   "scripts": {
     "dev": "vite",
+    "build:exercises": "node scripts/build-exercises.mjs",
+    "prebuild": "npm run build:exercises",
     "build": "vite build",
     "preview": "vite preview",
     "db:create": "wrangler d1 create gym-success-plan",

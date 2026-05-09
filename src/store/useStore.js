@@ -64,6 +64,7 @@ const useStore = create(
       measurements: [],
       waterEntries: [],
       waterTodayMl: 0,
+      favoriteIds: [],
 
       // ── UI ──
       toasts: [],
@@ -173,7 +174,7 @@ const useStore = create(
         if (!get().user) return;
         set({ syncing: true });
         try {
-          const [w, prs, bw, nut, posts, photos, custom, meas, water] = await Promise.all([
+          const [w, prs, bw, nut, posts, photos, custom, meas, water, favs] = await Promise.all([
             api.listWorkouts(),
             api.listPRs(),
             api.listBodyWeight(),
@@ -183,6 +184,7 @@ const useStore = create(
             api.listCustomWorkouts().catch(() => ({ workouts: [] })),
             api.listMeasurements().catch(() => ({ measurements: [] })),
             api.getWater().catch(() => ({ entries: [], todayMl: 0 })),
+            api.listFavorites().catch(() => ({ ids: [] })),
           ]);
           set({
             workouts: w.workouts || [],
@@ -196,6 +198,7 @@ const useStore = create(
             measurements: meas.measurements || [],
             waterEntries: water.entries || [],
             waterTodayMl: water.todayMl || 0,
+            favoriteIds: favs.ids || [],
             syncing: false,
             lastSyncedAt: new Date().toISOString(),
           });
@@ -347,6 +350,24 @@ const useStore = create(
         if (!get().user) return;
         try { await api.addWater(Number(ml)); }
         catch { get().queueChange({ kind: 'water', payload: { ml: Number(ml) } }); }
+      },
+
+      // ── Favorites ──
+      toggleFavorite: async (exerciseId) => {
+        if (!exerciseId) return;
+        const has = get().favoriteIds.includes(exerciseId);
+        set((s) => ({
+          favoriteIds: has
+            ? s.favoriteIds.filter((id) => id !== exerciseId)
+            : [exerciseId, ...s.favoriteIds],
+        }));
+        if (!get().user) return;
+        try {
+          if (has) await api.removeFavorite(exerciseId);
+          else await api.addFavorite(exerciseId);
+        } catch {
+          get().queueChange({ kind: 'favorite_toggle', payload: { id: exerciseId, removed: has } });
+        }
       },
 
       // ── Body measurements ──

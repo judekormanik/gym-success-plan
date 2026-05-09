@@ -138,6 +138,15 @@ CREATE TABLE IF NOT EXISTS body_measurements (
 );
 CREATE INDEX IF NOT EXISTS idx_meas_user ON body_measurements(user_id, logged_at DESC);
 
+-- ---------------- FAVORITES (exercise library) ----------------
+CREATE TABLE IF NOT EXISTS favorites (
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  exercise_id TEXT NOT NULL,
+  created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, exercise_id)
+);
+CREATE INDEX IF NOT EXISTS idx_fav_user ON favorites(user_id, created_at DESC);
+
 -- ---------------- WATER LOG ----------------
 CREATE TABLE IF NOT EXISTS water_log (
   id        TEXT PRIMARY KEY,

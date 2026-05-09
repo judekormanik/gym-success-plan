@@ -3,9 +3,11 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   ChevronLeft, Plus, X, Search, Save, ArrowUp, ArrowDown,
   Trash2, ChevronDown, ChevronRight, Copy, Sparkles, Clock, ListPlus,
+  Star, SlidersHorizontal,
 } from 'lucide-react';
 import useStore from '../store/useStore.js';
-import { EXERCISES, MUSCLE_GROUPS, exerciseById } from '../utils/exerciseLibrary.js';
+import { MUSCLE_GROUPS, EQUIPMENT_FILTERS, exerciseById } from '../utils/exerciseLibrary.js';
+import useExerciseLibrary from '../hooks/useExerciseLibrary.js';
 import { TEMPLATES } from '../utils/workoutTemplates.js';
 import ExerciseTile from '../components/ExerciseTile.jsx';
 
@@ -444,18 +446,36 @@ function ExerciseRow({ row, index, isFirst, isLast, onChange, onRemove, onMove, 
 // Exercise picker — supports duplicates, shows count badge, stays open
 // ───────────────────────────────────────────────────────────
 function ExercisePicker({ counts, onClose, onPick }) {
+  const { exercises, ready } = useExerciseLibrary();
+  const favorites = useStore((s) => s.favoriteIds);
+  const favSet = useMemo(() => new Set(favorites), [favorites]);
+
   const [muscle, setMuscle] = useState('all');
+  const [equipment, setEquipment] = useState('all');
   const [q, setQ] = useState('');
+  const [favOnly, setFavOnly] = useState(false);
   const [flash, setFlash] = useState(null);
   const flashTimer = useRef();
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    return EXERCISES.filter((e) =>
-      (muscle === 'all' || e.muscle === muscle) &&
-      (!ql || e.name.toLowerCase().includes(ql))
-    );
-  }, [muscle, q]);
+    let out = exercises.filter((e) => {
+      if (muscle !== 'all' && e.muscle !== muscle) return false;
+      if (equipment !== 'all' && e.equipment !== equipment) return false;
+      if (favOnly && !favSet.has(e.id)) return false;
+      if (ql && !e.name.toLowerCase().includes(ql)) return false;
+      return true;
+    });
+    // Curated first when no filters active
+    if (muscle === 'all' && equipment === 'all' && !favOnly && !ql) {
+      out = [...out].sort((a, b) => {
+        if (a.curated && !b.curated) return -1;
+        if (!a.curated && b.curated) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    return out;
+  }, [exercises, muscle, equipment, favOnly, favSet, q]);
 
   const pick = (id) => {
     onPick(id);
@@ -500,7 +520,20 @@ function ExercisePicker({ counts, onClose, onPick }) {
           />
         </div>
 
-        <div className="row" style={{ gap: 6, marginBottom: 12, overflowX: 'auto', flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 6, marginBottom: 8, overflowX: 'auto', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setFavOnly((v) => !v)}
+            className="pill"
+            title="Show only favorites"
+            style={{
+              cursor: 'pointer',
+              background: favOnly ? 'var(--gold)' : 'var(--surface-2)',
+              color: favOnly ? '#0a0a0a' : 'var(--text-dim)',
+              borderColor: favOnly ? 'var(--gold)' : 'var(--border)',
+              fontWeight: favOnly ? 600 : 500,
+              padding: '5px 10px', fontSize: 11,
+            }}
+          ><Star size={11} fill={favOnly ? '#0a0a0a' : 'transparent'} /></button>
           {MUSCLE_GROUPS.map((g) => (
             <button
               key={g.id}
@@ -517,6 +550,23 @@ function ExercisePicker({ counts, onClose, onPick }) {
             >{g.label}</button>
           ))}
         </div>
+        <div className="row" style={{ gap: 6, marginBottom: 12, overflowX: 'auto', flexWrap: 'wrap' }}>
+          {EQUIPMENT_FILTERS.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setEquipment(g.id)}
+              className="pill"
+              style={{
+                cursor: 'pointer',
+                background: equipment === g.id ? 'var(--gold)' : 'var(--surface-2)',
+                color: equipment === g.id ? '#0a0a0a' : 'var(--text-dim)',
+                borderColor: equipment === g.id ? 'var(--gold)' : 'var(--border)',
+                fontWeight: equipment === g.id ? 600 : 500,
+                padding: '5px 10px', fontSize: 11,
+              }}
+            >{g.label}</button>
+          ))}
+        </div>
 
         <div style={{
           flex: 1, overflow: 'auto',
@@ -527,10 +577,10 @@ function ExercisePicker({ counts, onClose, onPick }) {
             const isFlashing = flash === ex.id;
             return (
               <div key={ex.id} style={{ position: 'relative' }}>
-                <ExerciseTile exercise={ex} size="sm" onClick={() => pick(ex.id)} />
+                <ExerciseTile exercise={ex} size="sm" onClick={() => pick(ex.id)} favorited={favSet.has(ex.id)} />
                 {(c > 0 || isFlashing) && (
                   <div style={{
-                    position: 'absolute', top: 6, right: 6,
+                    position: 'absolute', bottom: 8, right: 8,
                     minWidth: 22, height: 22, padding: '0 6px',
                     borderRadius: 999,
                     background: 'var(--gold)', color: '#0a0a0a',
@@ -544,7 +594,12 @@ function ExercisePicker({ counts, onClose, onPick }) {
               </div>
             );
           })}
-          {!filtered.length && (
+          {!ready && filtered.length === 0 && (
+            <div className="muted" style={{ padding: 24, textAlign: 'center', gridColumn: '1 / -1', fontSize: 13 }}>
+              Loading library…
+            </div>
+          )}
+          {ready && !filtered.length && (
             <div className="muted" style={{ padding: 24, textAlign: 'center', gridColumn: '1 / -1', fontSize: 13 }}>
               No matches.
             </div>

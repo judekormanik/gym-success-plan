@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Dumbbell } from 'lucide-react';
+import { Dumbbell, Star } from 'lucide-react';
 import { MUSCLE_ACCENTS } from '../utils/exerciseLibrary.js';
 
 // Polished tile that shows a public-domain image when available, with a
 // styled gradient fallback if it fails or doesn't exist.
-export default function ExerciseTile({ exercise, size = 'md', onClick, selected }) {
+export default function ExerciseTile({ exercise, size = 'md', onClick, selected, favorited, showLevel }) {
   const [errored, setErrored] = useState(false);
   const accent = MUSCLE_ACCENTS[exercise.muscle] || MUSCLE_ACCENTS.full;
 
@@ -73,6 +73,28 @@ export default function ExerciseTile({ exercise, size = 'md', onClick, selected 
         textTransform: 'uppercase', letterSpacing: '0.08em',
       }}>
         {accent.label}
+      </div>
+
+      {/* Top-right favorite + level badges */}
+      <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 4, alignItems: 'center' }}>
+        {showLevel && exercise.level && (
+          <div style={{
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(6px)',
+            color: '#fff', fontSize: 9, fontWeight: 600,
+            padding: '3px 7px', borderRadius: 999,
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+          }}>{exercise.level === 'expert' ? 'Adv' : exercise.level === 'intermediate' ? 'Inter' : 'Begin'}</div>
+        )}
+        {favorited && (
+          <div style={{
+            background: 'var(--gold)', color: '#0a0a0a',
+            width: 22, height: 22, borderRadius: 99,
+            display: 'grid', placeItems: 'center',
+          }}>
+            <Star size={12} fill="#0a0a0a" />
+          </div>
+        )}
       </div>
 
       {/* Bottom title */}

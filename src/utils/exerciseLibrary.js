@@ -220,6 +220,96 @@ export const MUSCLE_ACCENTS = {
   full: { hue: 250, label: 'Full body' },
 };
 
-export function exerciseById(id) {
-  return EXERCISES.find((e) => e.id === id) || null;
+// ───────────────────────────────────────────────────────────
+// Full library loader (873 exercises from free-exercise-db)
+// ───────────────────────────────────────────────────────────
+
+// Maps the curated kebab-case IDs to upstream free-exercise-db IDs, so a custom
+// workout saved with `rack-pull` resolves cleanly when the full library loads.
+function deriveAlias(curated) {
+  if (!curated.image) return null;
+  const m = curated.image.match(/exercises\/([^/]+)\//);
+  return m ? m[1] : null;
 }
+const CURATED_ALIASES = Object.fromEntries(
+  EXERCISES.map((e) => [e.id, deriveAlias(e)]).filter(([, v]) => !!v)
+);
+
+let _fullLibraryPromise = null;
+let _fullLibraryCache = null;
+
+export function loadFullLibrary() {
+  if (_fullLibraryCache) return Promise.resolve(_fullLibraryCache);
+  if (_fullLibraryPromise) return _fullLibraryPromise;
+  _fullLibraryPromise = fetch('/exercises.json', { credentials: 'omit' })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((arr) => {
+      _fullLibraryCache = Array.isArray(arr) ? arr : [];
+      return _fullLibraryCache;
+    })
+    .catch(() => {
+      _fullLibraryCache = [];
+      return _fullLibraryCache;
+    });
+  return _fullLibraryPromise;
+}
+
+export function getFullLibrary() {
+  return _fullLibraryCache;
+}
+
+// Curated exercises take precedence — they have hand-tuned instructions and
+// our default set counts. The full library is used to render the deep
+// catalog and to resolve any IDs we don't recognise.
+export function exerciseById(id) {
+  if (!id) return null;
+  // 1. Curated by exact id (kebab-case)
+  const curated = EXERCISES.find((e) => e.id === id);
+  if (curated) return curated;
+  // 2. Curated by alias (full library id -> curated entry)
+  for (const [kebab, alias] of Object.entries(CURATED_ALIASES)) {
+    if (alias === id) {
+      const c = EXERCISES.find((e) => e.id === kebab);
+      if (c) return c;
+    }
+  }
+  // 3. Full library by exact id
+  if (_fullLibraryCache) {
+    const full = _fullLibraryCache.find((e) => e.id === id);
+    if (full) return full;
+  }
+  return null;
+}
+
+// Convenience export for taxonomy filters.
+export const EQUIPMENT_FILTERS = [
+  { id: 'all', label: 'All equipment' },
+  { id: 'barbell', label: 'Barbell' },
+  { id: 'dumbbell', label: 'Dumbbell' },
+  { id: 'cable', label: 'Cable' },
+  { id: 'machine', label: 'Machine' },
+  { id: 'bodyweight', label: 'Bodyweight' },
+  { id: 'kettlebell', label: 'Kettlebell' },
+  { id: 'bands', label: 'Bands' },
+  { id: 'other', label: 'Other' },
+];
+
+export const LEVEL_FILTERS = [
+  { id: 'all', label: 'Any level' },
+  { id: 'beginner', label: 'Beginner' },
+  { id: 'intermediate', label: 'Intermediate' },
+  { id: 'expert', label: 'Advanced' },
+];
+
+export const FORCE_FILTERS = [
+  { id: 'all', label: 'Any force' },
+  { id: 'push', label: 'Push' },
+  { id: 'pull', label: 'Pull' },
+  { id: 'static', label: 'Static' },
+];
+
+export const MECHANIC_FILTERS = [
+  { id: 'all', label: 'Any mechanic' },
+  { id: 'compound', label: 'Compound' },
+  { id: 'isolation', label: 'Isolation' },
+];
