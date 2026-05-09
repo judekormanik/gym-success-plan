@@ -114,6 +114,18 @@ CREATE TABLE IF NOT EXISTS community_comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_post ON community_comments(post_id, created_at);
 
+-- ---------------- CUSTOM WORKOUTS ----------------
+-- exercises is a JSON-encoded array of {exerciseId, sets} objects.
+CREATE TABLE IF NOT EXISTS custom_workouts (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  description TEXT,
+  exercises   TEXT NOT NULL,
+  created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_cw_user ON custom_workouts(user_id, created_at DESC);
+
 -- ---------------- PROGRESS PHOTOS ----------------
 -- photo_url stores either a data: URL (base64) or an R2/CDN URL.
 CREATE TABLE IF NOT EXISTS progress_photos (

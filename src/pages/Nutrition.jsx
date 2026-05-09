@@ -3,6 +3,7 @@ import { Plus, Trash2, UtensilsCrossed, BookmarkPlus } from 'lucide-react';
 import useNutrition from '../hooks/useNutrition.js';
 import MacroRings from '../components/MacroRings.jsx';
 import EmptyState from '../components/EmptyState.jsx';
+import FoodSearch from '../components/FoodSearch.jsx';
 import useStore from '../store/useStore.js';
 import { formatRelative } from '../utils/calculations.js';
 
@@ -66,9 +67,25 @@ export default function NutritionPage() {
         </div>
       </div>
 
+      <div className="card mb-6" style={{ padding: 20 }}>
+        <div className="eyebrow mb-4">Search foods · or scan a barcode</div>
+        <FoodSearch
+          onPick={(food) => {
+            logFood({
+              name: food.food_name,
+              calories: food.calories,
+              protein: food.protein,
+              carbs: food.carbs,
+              fats: food.fats,
+            });
+            pushToast('Logged', 'success');
+          }}
+        />
+      </div>
+
       <div className="card-row cols-2 mb-6">
         <div className="card" style={{ padding: 20 }}>
-          <div className="eyebrow mb-4">Log food</div>
+          <div className="eyebrow mb-4">Quick log (custom)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input className="input" placeholder="Food name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>

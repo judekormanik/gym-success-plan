@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Dumbbell, LineChart, Users, ShieldCheck, Smartphone, Check, ArrowRight, Star, ChevronDown,
@@ -8,6 +8,15 @@ import useStore from '../store/useStore.js';
 import { APP_NAME, APP_TAGLINE, PRICE_USD, MONTHLY_EQ } from '../utils/constants.js';
 
 export default function Landing() {
+  const user = useStore((s) => s.user);
+  const profile = useStore((s) => s.profile);
+
+  // Signed-in users skip the marketing page entirely. They only see it again
+  // after explicitly signing out.
+  if (user) {
+    return <Navigate to={profile?.onboarded ? '/dashboard' : '/onboarding'} replace />;
+  }
+
   return (
     <div>
       <Header />

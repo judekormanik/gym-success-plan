@@ -62,6 +62,16 @@ export const api = {
   listPhotos: () => call('/api/photos'),
   addPhoto: (photoUrl, notes) => call('/api/photos', { method: 'POST', body: { photo_url: photoUrl, notes } }),
 
+  // ── Custom workouts ──
+  listCustomWorkouts: () => call('/api/custom-workouts'),
+  saveCustomWorkout: (workout) => call('/api/custom-workouts', { method: 'POST', body: workout }),
+  updateCustomWorkout: (id, patch) => call('/api/custom-workouts', { method: 'PATCH', params: { id }, body: patch }),
+  deleteCustomWorkout: (id) => call('/api/custom-workouts', { method: 'DELETE', params: { id } }),
+
+  // ── Foods (Open Food Facts via our proxy) ──
+  searchFoods: (q) => call('/api/foods/search', { params: { q } }),
+  lookupBarcode: (code) => call('/api/foods/barcode', { params: { code } }),
+
   // ── Subscription verify ──
   verifySubscription: (email) => call('/verify-subscription', { params: { email } }),
 };

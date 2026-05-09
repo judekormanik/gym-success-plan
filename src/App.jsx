@@ -11,6 +11,8 @@ import useProfile from './hooks/useProfile.js';
 const Landing = lazy(() => import('./pages/Landing.jsx'));
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const Workout = lazy(() => import('./pages/Workout.jsx'));
+const Library = lazy(() => import('./pages/Library.jsx'));
+const Builder = lazy(() => import('./pages/Builder.jsx'));
 const Progress = lazy(() => import('./pages/Progress.jsx'));
 const Nutrition = lazy(() => import('./pages/Nutrition.jsx'));
 const Community = lazy(() => import('./pages/Community.jsx'));
@@ -78,6 +80,8 @@ function AnimatedRoutes() {
 
         <Route path="/dashboard" element={<RequireAuth><PageFrame><Dashboard /></PageFrame></RequireAuth>} />
         <Route path="/workout" element={<RequireAuth><PageFrame><Workout /></PageFrame></RequireAuth>} />
+        <Route path="/workout/library" element={<RequireAuth><PageFrame><Library /></PageFrame></RequireAuth>} />
+        <Route path="/workout/build" element={<RequireAuth><PageFrame><Builder /></PageFrame></RequireAuth>} />
         <Route path="/progress" element={<RequireAuth><PageFrame><Progress /></PageFrame></RequireAuth>} />
         <Route path="/nutrition" element={<RequireAuth><PageFrame><Nutrition /></PageFrame></RequireAuth>} />
         <Route path="/community" element={<RequireAuth><PageFrame><Community /></PageFrame></RequireAuth>} />

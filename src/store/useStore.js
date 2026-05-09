@@ -41,6 +41,7 @@ const useStore = create(
       posts: [],
       comments: {},
       photos: [],
+      customWorkouts: [],
 
       // ── UI ──
       toasts: [],
@@ -148,13 +149,14 @@ const useStore = create(
         if (!get().user) return;
         set({ syncing: true });
         try {
-          const [w, prs, bw, nut, posts, photos] = await Promise.all([
+          const [w, prs, bw, nut, posts, photos, custom] = await Promise.all([
             api.listWorkouts(),
             api.listPRs(),
             api.listBodyWeight(),
             api.listNutrition(),
             api.listPosts(),
             api.listPhotos(),
+            api.listCustomWorkouts().catch(() => ({ workouts: [] })),
           ]);
           set({
             workouts: w.workouts || [],
@@ -164,6 +166,7 @@ const useStore = create(
             nutrition: nut.nutrition || [],
             posts: posts.posts || SEED_POSTS,
             photos: photos.photos || [],
+            customWorkouts: custom.workouts || [],
             syncing: false,
             lastSyncedAt: new Date().toISOString(),
           });
@@ -172,10 +175,39 @@ const useStore = create(
             personalRecords: prs.personal_records,
             bodyWeight: bw.body_weight, nutrition: nut.nutrition,
             posts: posts.posts, photos: photos.photos,
+            customWorkouts: custom.workouts,
           });
         } catch {
           set({ syncing: false });
         }
+      },
+
+      // ── Custom workouts ──
+      saveCustomWorkout: async ({ name, description, exercises }) => {
+        const optimistic = {
+          id: newId(), name, description: description || '',
+          exercises: exercises.map((e) => ({ exerciseId: e.exerciseId, sets: Number(e.sets) || 3 })),
+          created_at: new Date().toISOString(),
+        };
+        set((s) => ({ customWorkouts: [optimistic, ...s.customWorkouts] }));
+        if (!get().user) return optimistic;
+        try {
+          const { workout } = await api.saveCustomWorkout({ name, description, exercises });
+          // Replace optimistic with server-returned canonical version
+          set((s) => ({
+            customWorkouts: [workout, ...s.customWorkouts.filter((cw) => cw.id !== optimistic.id)],
+          }));
+          return workout;
+        } catch {
+          get().queueChange({ kind: 'custom_workout', payload: { name, description, exercises } });
+          return optimistic;
+        }
+      },
+
+      deleteCustomWorkout: async (id) => {
+        set((s) => ({ customWorkouts: s.customWorkouts.filter((cw) => cw.id !== id) }));
+        if (!get().user) return;
+        try { await api.deleteCustomWorkout(id); } catch {}
       },
 
       // ════════════════════════════════════════════════════
@@ -331,6 +363,7 @@ const useStore = create(
             else if (c.kind === 'post') await api.addPost(c.payload.content);
             else if (c.kind === 'comment') await api.addComment(c.payload.postId, c.payload.content);
             else if (c.kind === 'photo') await api.addPhoto(c.payload.photoUrl, c.payload.notes);
+            else if (c.kind === 'custom_workout') await api.saveCustomWorkout(c.payload);
           } catch {
             remaining.push(c);
           }
