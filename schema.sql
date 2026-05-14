@@ -105,6 +105,12 @@ CREATE TABLE IF NOT EXISTS community_posts (
   user_name   TEXT,
   content     TEXT NOT NULL,
   likes       INTEGER DEFAULT 0,
+  -- 'post' = plain text · 'workout_share' = workout payload in metadata
+  kind        TEXT DEFAULT 'post',
+  -- JSON: { workout: { name, description, exercises:[...] } } for shared workouts
+  metadata    TEXT,
+  -- JSON: { fire: 0, trophy: 0, muscle: 0 } reaction counters
+  reactions   TEXT,
   created_at  TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_posts_created ON community_posts(created_at DESC);

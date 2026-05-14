@@ -387,20 +387,70 @@ const useStore = create(
       // ════════════════════════════════════════════════════
       // Community
       // ════════════════════════════════════════════════════
-      addPost: async (content) => {
+      addPost: async (content, options = {}) => {
         const optimistic = {
           id: newId(), user_id: get().user?.id || 'guest',
           user_name: get().profile?.name || 'Member',
-          content, likes: 0, created_at: new Date().toISOString(),
+          content, likes: 0,
+          kind: options.kind || 'post',
+          metadata: options.metadata || null,
+          reactions: {},
+          created_at: new Date().toISOString(),
         };
         set((s) => ({ posts: [optimistic, ...s.posts] }));
         if (!get().user) return;
-        try { await api.addPost(content); }
-        catch { get().queueChange({ kind: 'post', payload: { content } }); }
+        try {
+          const { post } = await api.addPost(content, options);
+          set((s) => ({ posts: [post, ...s.posts.filter((p) => p.id !== optimistic.id)] }));
+        }
+        catch { get().queueChange({ kind: 'post', payload: { content, options } }); }
       },
+
+      shareCustomWorkout: async (customId, content) => {
+        const cw = get().customWorkouts.find((w) => w.id === customId);
+        if (!cw) return { ok: false, error: 'workout not found' };
+        const metadata = {
+          workout: {
+            name: cw.name,
+            description: cw.description || '',
+            exercises: (cw.exercises || []).map((e) => ({
+              exerciseId: e.exerciseId,
+              sets: e.sets,
+              ...(e.repsTarget ? { repsTarget: e.repsTarget } : {}),
+              ...(e.restSeconds != null ? { restSeconds: e.restSeconds } : {}),
+              ...(e.notes ? { notes: e.notes } : {}),
+            })),
+          },
+        };
+        await get().addPost(content || `Sharing my workout: ${cw.name}`, {
+          kind: 'workout_share',
+          metadata,
+        });
+        return { ok: true };
+      },
+
+      cloneWorkoutFromPost: async (postId) => {
+        try {
+          const { workout } = await api.cloneWorkoutFromPost(postId);
+          set((s) => ({ customWorkouts: [workout, ...s.customWorkouts] }));
+          return { ok: true, workout };
+        } catch (e) {
+          return { ok: false, error: e.message };
+        }
+      },
+
       likePost: async (id) => {
         set((s) => ({ posts: s.posts.map((p) => p.id === id ? { ...p, likes: (p.likes || 0) + 1 } : p) }));
         try { await api.likePost(id); } catch {}
+      },
+      reactToPost: async (id, action) => {
+        set((s) => ({
+          posts: s.posts.map((p) => p.id === id
+            ? { ...p, reactions: { ...(p.reactions || {}), [action]: ((p.reactions || {})[action] || 0) + 1 } }
+            : p
+          ),
+        }));
+        try { await api.reactPost(id, action); } catch {}
       },
       addComment: async (postId, content) => {
         const optimistic = {

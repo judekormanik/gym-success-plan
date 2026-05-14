@@ -53,8 +53,12 @@ export const api = {
 
   // ── Community ──
   listPosts: () => call('/api/posts'),
-  addPost: (content) => call('/api/posts', { method: 'POST', body: { content } }),
-  likePost: (id) => call('/api/posts', { method: 'PATCH', params: { id } }),
+  addPost: (content, { kind, metadata } = {}) => call('/api/posts', {
+    method: 'POST', body: { content, kind, metadata },
+  }),
+  likePost: (id) => call('/api/posts', { method: 'PATCH', params: { id, action: 'like' } }),
+  reactPost: (id, action) => call('/api/posts', { method: 'PATCH', params: { id, action } }),
+  cloneWorkoutFromPost: (postId) => call('/api/clone-workout', { method: 'POST', body: { post_id: postId } }),
   listComments: (postId) => call('/api/comments', { params: { post_id: postId } }),
   addComment: (postId, content) => call('/api/comments', { method: 'POST', body: { post_id: postId, content } }),
 
