@@ -21,6 +21,8 @@ const Checkout = lazy(() => import('./pages/Checkout.jsx'));
 const CheckoutSuccess = lazy(() => import('./pages/CheckoutSuccess.jsx'));
 const CheckoutCancel = lazy(() => import('./pages/CheckoutCancel.jsx'));
 const Onboarding = lazy(() => import('./components/Onboarding.jsx'));
+const Privacy = lazy(() => import('./pages/Privacy.jsx'));
+const Terms = lazy(() => import('./pages/Terms.jsx'));
 
 function PageFrame({ children }) {
   return (
@@ -84,6 +86,8 @@ function AnimatedRoutes() {
         <Route path="/checkout-success" element={<PublicFrame><CheckoutSuccess /></PublicFrame>} />
         <Route path="/checkout-cancel" element={<PublicFrame><CheckoutCancel /></PublicFrame>} />
         <Route path="/onboarding" element={<PublicFrame><Onboarding /></PublicFrame>} />
+        <Route path="/privacy" element={<PublicFrame><Privacy /></PublicFrame>} />
+        <Route path="/terms" element={<PublicFrame><Terms /></PublicFrame>} />
 
         <Route path="/dashboard" element={<RequireAuth><PageFrame><Dashboard /></PageFrame></RequireAuth>} />
         <Route path="/workout" element={<RequireAuth><PageFrame><Workout /></PageFrame></RequireAuth>} />

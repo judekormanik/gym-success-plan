@@ -13,7 +13,9 @@ import { PLAN } from '../utils/constants.js';
 import { exerciseById } from '../utils/exerciseLibrary.js';
 import useExerciseLibrary from '../hooks/useExerciseLibrary.js';
 import { isPersonalRecord } from '../utils/calculations.js';
+import { suggestNext } from '../utils/progression.js';
 import PRCelebration from '../components/PRCelebration.jsx';
+import ProgressionHint from '../components/ProgressionHint.jsx';
 
 export default function WorkoutPage() {
   const navigate = useNavigate();
@@ -263,6 +265,16 @@ export default function WorkoutPage() {
                         {ex.notes && <span style={{ flexBasis: '100%' }}><b style={{ color: 'var(--gold)' }}>Notes:</b> {ex.notes}</span>}
                       </div>
                     )}
+                    <ProgressionHint
+                      suggestion={suggestNext({
+                        history: sets.filter((s) => s.exercise_name === ex.name),
+                        repsTarget: ex.repsTarget,
+                        units: profile?.units || 'metric',
+                        exerciseName: ex.name,
+                      })}
+                      units={profile?.units || 'metric'}
+                      compound={ex.exercise?.mechanic === 'compound'}
+                    />
                     <ExerciseRow
                       exercise={{ name: ex.name, sets: ex.sets, optional: ex.optional }}
                       previous={lastSession(ex.name)}

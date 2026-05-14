@@ -1,14 +1,47 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Flame, Activity, Scale, UtensilsCrossed, Cloud, Plus } from 'lucide-react';
+import { ArrowRight, Flame, Activity, Scale, UtensilsCrossed, Cloud, Plus, Trophy, Coffee, TrendingUp, TrendingDown, Minus, Moon } from 'lucide-react';
 import useStore from '../store/useStore.js';
 import useWorkout from '../hooks/useWorkout.js';
 import useNutrition from '../hooks/useNutrition.js';
 import useStreak from '../hooks/useStreak.js';
 import { LineProgress } from '../components/ProgressChart.jsx';
 import { QUOTES } from '../utils/constants.js';
-import { formatRelative, dateKey } from '../utils/calculations.js';
+import { formatRelative, dateKey, epley1RM } from '../utils/calculations.js';
+import { formatWeight } from '../utils/units.js';
 import PRCelebration from '../components/PRCelebration.jsx';
+
+// ── Helpers used by weekly summary + rest-day detection ────────────
+function startOfWeek(d = new Date()) {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  // Treat Monday as day 0 of the training week
+  const dow = (x.getDay() + 6) % 7;
+  x.setDate(x.getDate() - dow);
+  return x;
+}
+function inWindow(date, start, end) {
+  const t = new Date(date).getTime();
+  return t >= start.getTime() && t < end.getTime();
+}
+function trendArrow(delta) {
+  if (delta > 0) return { Icon: TrendingUp, color: 'var(--success)' };
+  if (delta < 0) return { Icon: TrendingDown, color: 'var(--danger)' };
+  return { Icon: Minus, color: 'var(--text-mute)' };
+}
+function consecutiveDaysTrained(workouts, today = new Date()) {
+  const days = new Set(
+    workouts
+      .filter((w) => w.completed_at)
+      .map((w) => dateKey(new Date(w.completed_at)))
+  );
+  let streak = 0;
+  const cursor = new Date(today); cursor.setHours(0, 0, 0, 0);
+  while (days.has(dateKey(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
 
 export default function Dashboard() {
   const profile = useStore((s) => s.profile);
@@ -31,6 +64,29 @@ export default function Dashboard() {
     }));
   }, [sets]);
 
+  // Weekly summary — this week vs last week
+  const weekly = useMemo(() => {
+    const thisStart = startOfWeek();
+    const lastStart = new Date(thisStart); lastStart.setDate(thisStart.getDate() - 7);
+    const nextStart = new Date(thisStart); nextStart.setDate(thisStart.getDate() + 7);
+    const thisW = workouts.filter((w) => w.completed_at && inWindow(w.completed_at, thisStart, nextStart));
+    const lastW = workouts.filter((w) => w.completed_at && inWindow(w.completed_at, lastStart, thisStart));
+    const thisSets = sets.filter((s) => s.completed_at && inWindow(s.completed_at, thisStart, nextStart));
+    const lastSets = sets.filter((s) => s.completed_at && inWindow(s.completed_at, lastStart, thisStart));
+    const vol = (rows) => rows.reduce((a, s) => a + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0);
+    const prs = (rows) => rows.filter((s) => s.is_pr).length;
+    return {
+      sessions: thisW.length,
+      sessionsDelta: thisW.length - lastW.length,
+      volume: vol(thisSets),
+      volumeDelta: vol(thisSets) - vol(lastSets),
+      prs: prs(thisSets),
+      prsDelta: prs(thisSets) - prs(lastSets),
+    };
+  }, [workouts, sets]);
+
+  const restDayNudge = consecutiveDaysTrained(workouts) >= 4;
+
   const [quickCals, setQuickCals] = useState('');
 
   const quickLog = () => {
@@ -51,8 +107,25 @@ export default function Dashboard() {
         <Link to="/workout" className="btn btn-gold">Start workout <ArrowRight size={14} /></Link>
       </div>
 
+      {restDayNudge && (
+        <div className="card mb-4" style={{
+          padding: 14,
+          background: 'linear-gradient(180deg, rgba(96,165,250,0.08), transparent), var(--surface)',
+          border: '1px solid rgba(96,165,250,0.3)',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <Moon size={18} style={{ color: '#60a5fa', flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>You've trained 4+ days in a row.</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+              Consider a mobility day or light cardio today. Your gains happen on rest days.
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card-row cols-4 mb-6">
-        <Stat icon={Scale} label="Weight" value={bodyWeight[0]?.weight ? `${bodyWeight[0].weight} kg` : '—'} sub={bodyWeight[0]?.logged_at ? formatRelative(bodyWeight[0].logged_at) : 'No log yet'} />
+        <Stat icon={Scale} label="Weight" value={bodyWeight[0]?.weight ? formatWeight(bodyWeight[0].weight, profile?.units || 'metric') : '—'} sub={bodyWeight[0]?.logged_at ? formatRelative(bodyWeight[0].logged_at) : 'No log yet'} />
         <Stat icon={Activity} label="Workouts this week" value={weekCount} sub={weekCount >= 4 ? 'On pace' : `${4 - weekCount} to hit goal`} />
         <Stat icon={Flame} gold label="Streak" value={`${current}`} sub={current === 0 ? 'Start today' : 'days in a row'} />
         <Stat icon={UtensilsCrossed} label="Calories today" value={Math.round(totals.calories)} sub={`/ ${targets.calories || '—'} target`} />
@@ -90,6 +163,42 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Weekly summary */}
+      <div className="card mb-6" style={{ padding: 20 }}>
+        <div className="row-between mb-4">
+          <div>
+            <div className="eyebrow">This week</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              Vs. last week · resets Monday
+            </div>
+          </div>
+          <Link to="/progress" className="muted" style={{ fontSize: 12 }}>View all →</Link>
+        </div>
+        <div className="card-row cols-3" style={{ gap: 12 }}>
+          <WeeklyStat
+            icon={Activity}
+            label="Sessions"
+            value={weekly.sessions}
+            delta={weekly.sessionsDelta}
+            unit=""
+          />
+          <WeeklyStat
+            icon={TrendingUp}
+            label="Total volume"
+            value={weekly.volume.toLocaleString()}
+            delta={weekly.volumeDelta}
+            unit=""
+          />
+          <WeeklyStat
+            icon={Trophy}
+            label="PRs broken"
+            value={weekly.prs}
+            delta={weekly.prsDelta}
+            unit=""
+          />
+        </div>
+      </div>
+
       <div className="card-row cols-2 mb-6">
         <div className="card" style={{ padding: 24 }}>
           <div className="eyebrow" style={{ marginBottom: 12 }}>Quick calorie log</div>
@@ -124,6 +233,33 @@ export default function Dashboard() {
       </div>
 
       <PRCelebration />
+    </div>
+  );
+}
+
+function WeeklyStat({ icon: Icon, label, value, delta, unit = '' }) {
+  const { Icon: ArrowIcon, color } = trendArrow(delta);
+  const showDelta = delta !== 0 && Number.isFinite(delta);
+  return (
+    <div style={{
+      padding: 14, borderRadius: 12,
+      background: 'var(--surface-2)', border: '1px solid var(--border)',
+    }}>
+      <div className="row-between mb-2">
+        <Icon size={14} style={{ color: 'var(--text-mute)' }} />
+        {showDelta && (
+          <div className="row" style={{ gap: 4, color }}>
+            <ArrowIcon size={12} />
+            <span className="mono" style={{ fontSize: 11, fontWeight: 600 }}>
+              {delta > 0 ? '+' : ''}{Math.abs(delta).toLocaleString()}{unit}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="eyebrow" style={{ marginBottom: 4 }}>{label}</div>
+      <div className="mono" style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.02em' }}>
+        {value}{unit}
+      </div>
     </div>
   );
 }

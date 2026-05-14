@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  LogOut, Smartphone, ExternalLink, Save, Lock, Trash2, AlertTriangle, Settings as SettingsIcon, Ruler,
+  LogOut, Smartphone, ExternalLink, Save, Lock, Trash2, AlertTriangle, Settings as SettingsIcon, Ruler, Download,
 } from 'lucide-react';
 import useStore from '../store/useStore.js';
 import useSubscription from '../hooks/useSubscription.js';
 import usePWA from '../hooks/usePWA.js';
 import { GOALS, EXPERIENCE } from '../utils/constants.js';
-import { ACTIVITY_LEVELS } from '../utils/calculations.js';
+import { ACTIVITY_LEVELS, exportToCSV, downloadCSV } from '../utils/calculations.js';
 import { api } from '../lib/api.js';
 import {
   formatWeight, formatHeight, kgToLb, cmToIn,
@@ -212,6 +212,43 @@ function Settings() {
   const navigate = useNavigate();
   const [pwOpen, setPwOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Pull every per-user data slice from the store
+  const workouts = useStore((s) => s.workouts);
+  const sets = useStore((s) => s.sets);
+  const personalRecords = useStore((s) => s.personalRecords);
+  const bodyWeight = useStore((s) => s.bodyWeight);
+  const nutrition = useStore((s) => s.nutrition);
+  const measurements = useStore((s) => s.measurements);
+  const waterEntries = useStore((s) => s.waterEntries);
+  const customWorkouts = useStore((s) => s.customWorkouts);
+  const photos = useStore((s) => s.photos);
+
+  const exportAll = () => {
+    setExporting(true);
+    try {
+      const rows = [
+        ...workouts.map((w) => ({ kind: 'workout', date: w.completed_at, name: w.day_name, duration_min: w.duration_minutes, notes: w.notes })),
+        ...sets.map((s) => ({ kind: 'set', date: s.completed_at, exercise: s.exercise_name, weight: s.weight, reps: s.reps, drop_set: s.is_drop_set, pr: s.is_pr })),
+        ...personalRecords.map((p) => ({ kind: 'pr', date: p.achieved_at, exercise: p.exercise_name, weight: p.weight, reps: p.reps })),
+        ...bodyWeight.map((b) => ({ kind: 'body_weight', date: b.logged_at, weight: b.weight })),
+        ...nutrition.map((n) => ({ kind: 'nutrition', date: n.logged_at, food: n.food_name, meal: n.meal_type, calories: n.calories, protein: n.protein, carbs: n.carbs, fats: n.fats })),
+        ...measurements.map((m) => ({ kind: 'measurement', date: m.logged_at, chest: m.chest, waist: m.waist, hips: m.hips, left_arm: m.left_arm, right_arm: m.right_arm, left_thigh: m.left_thigh, right_thigh: m.right_thigh, neck: m.neck, calf: m.calf, notes: m.notes })),
+        ...waterEntries.map((w) => ({ kind: 'water', date: w.logged_at, ml: w.ml })),
+        ...customWorkouts.map((cw) => ({ kind: 'custom_workout', date: cw.created_at, name: cw.name, description: cw.description, exercises_json: JSON.stringify(cw.exercises) })),
+        ...photos.map((p) => ({ kind: 'photo', date: p.taken_at, notes: p.notes })),
+      ];
+      if (!rows.length) {
+        pushToast('Nothing to export yet', 'error');
+        return;
+      }
+      downloadCSV(`gym-success-export-${new Date().toISOString().slice(0, 10)}.csv`, exportToCSV(rows));
+      pushToast(`Exported ${rows.length} rows`, 'success');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="card" style={{ padding: 24 }}>
@@ -222,6 +259,9 @@ function Settings() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button className="btn btn-quiet" onClick={() => setPwOpen(true)}>
           <Lock size={14} /> Change password
+        </button>
+        <button className="btn btn-quiet" onClick={exportAll} disabled={exporting}>
+          <Download size={14} /> {exporting ? 'Preparing…' : 'Export all my data (CSV)'}
         </button>
         <button className="btn btn-ghost" style={{ color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => setDelOpen(true)}>
           <Trash2 size={14} /> Delete account

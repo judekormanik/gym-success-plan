@@ -403,10 +403,12 @@ function Footer() {
           <div className="brand-mark" style={{ width: 26, height: 26, fontSize: 12 }}>G</div>
           <div className="muted" style={{ fontSize: 13 }}>© {new Date().getFullYear()} The Gym Success Plan</div>
         </div>
-        <div className="row gap-4 muted" style={{ fontSize: 13 }}>
+        <div className="row gap-4 muted" style={{ fontSize: 13, flexWrap: 'wrap' }}>
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
           <a href="mailto:hello@gymsuccessplan.app">Support</a>
         </div>
       </div>
