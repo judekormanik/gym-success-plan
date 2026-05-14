@@ -16,7 +16,7 @@ export async function onRequestGet({ request }) {
 
   const offUrl =
     `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}` +
-    `&page_size=15` +
+    `&page_size=30` +
     `&fields=code,product_name,brands,image_small_url,image_url,nutriments,serving_size,serving_quantity`;
 
   try {
@@ -31,7 +31,13 @@ export async function onRequestGet({ request }) {
     let data;
     try { data = JSON.parse(text); }
     catch { return json({ results: [], debug: 'non_json' }); }
-    const results = (data.hits || []).map(simplify).filter(Boolean).slice(0, 12);
+    // Keep entries with at least kcal/100g (filters out junk that the
+    // community contributed without nutrition data). Cap at 20 in the
+    // response so the UI stays scannable.
+    const results = (data.hits || [])
+      .map(simplify)
+      .filter((r) => r && r.per100?.calories > 0)
+      .slice(0, 20);
     return json({ results });
   } catch {
     return json({ results: [], debug: 'threw' });
