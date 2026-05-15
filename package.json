@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build:exercises": "node scripts/build-exercises.mjs",
-    "prebuild": "npm run build:exercises",
+    "build:usda": "node scripts/build-usda.mjs",
+    "prebuild": "npm run build:exercises && npm run build:usda",
     "build": "vite build",
     "preview": "vite preview",
     "db:create": "wrangler d1 create gym-success-plan",

@@ -2,7 +2,7 @@
  * Bump VERSION on every deploy that touches user-visible code so old caches
  * are evicted and clients pick up the new bundle on next reload.
  */
-const VERSION = 'gsp-v1.3.1';
+const VERSION = 'gsp-v1.4.0';
 const APP_SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 

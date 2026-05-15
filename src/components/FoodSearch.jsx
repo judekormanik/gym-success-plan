@@ -1,22 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ScanBarcode, X, Loader2, BadgeCheck, Globe } from 'lucide-react';
+import { Search, ScanBarcode, X, Loader2, BadgeCheck, Globe, Building2 } from 'lucide-react';
 import { api } from '../lib/api.js';
 import useStore from '../store/useStore.js';
 import { searchVerified } from '../utils/verifiedFoods.js';
+import { loadUSDA, searchUSDA, asPer100 } from '../utils/usdaFoods.js';
 
-// Two-tier food search:
-//   1. Verified (curated USDA-accurate) — instant, ranked first, shows ✓ badge
-//   2. Community (Open Food Facts) — millions of packaged foods, ranked after
-// Both tiers feed into the same onPick callback.
+// Three-tier food search:
+//   1. Verified  — curated USDA-accurate, ranked first, gold ✓ badge
+//   2. USDA      — 7,759 generic foods from USDA SR Legacy (per-100g macros)
+//   3. Community — packaged products from Open Food Facts
+// All three feed into the same onPick callback.
 export default function FoodSearch({ onPick }) {
   const [q, setQ] = useState('');
   const [offResults, setOffResults] = useState([]);
+  const [usdaResults, setUsdaResults] = useState([]);
+  const [usdaReady, setUsdaReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const debouncer = useRef();
 
-  // Verified results are instant (in-bundle) — no debounce needed.
-  const verified = useMemo(() => searchVerified(q, 12), [q]);
+  // Verified is in-bundle, instant.
+  const verified = useMemo(() => searchVerified(q, 8), [q]);
+
+  // Lazy-load the USDA dataset on first focus / mount.
+  useEffect(() => {
+    let cancelled = false;
+    loadUSDA().then(() => { if (!cancelled) setUsdaReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // USDA fuzzy search is local and synchronous after the JSON is loaded.
+  useEffect(() => {
+    if (!usdaReady) { setUsdaResults([]); return; }
+    if (q.trim().length < 2) { setUsdaResults([]); return; }
+    setUsdaResults(searchUSDA(q, 15));
+  }, [q, usdaReady]);
 
   // Open Food Facts results are debounced.
   useEffect(() => {
@@ -48,6 +66,18 @@ export default function FoodSearch({ onPick }) {
     setQ(''); setOffResults([]);
   };
 
+  const pickUSDA = (row) => {
+    const macros = asPer100(row);
+    onPick({
+      food_name: `${macros.food_name} (per 100g)`,
+      calories: macros.calories,
+      protein: macros.protein,
+      carbs: macros.carbs,
+      fats: macros.fats,
+    });
+    setQ(''); setOffResults([]); setUsdaResults([]);
+  };
+
   const pickOFF = (r, useServing) => {
     const macros = useServing && r.perServing ? r.perServing : r.per100;
     const label = useServing && r.perServing ? r.perServing.servingLabel : '100g';
@@ -62,7 +92,7 @@ export default function FoodSearch({ onPick }) {
   };
 
   const showResults = q.trim().length >= 2;
-  const hasAny = verified.length > 0 || offResults.length > 0;
+  const hasAny = verified.length > 0 || usdaResults.length > 0 || offResults.length > 0;
 
   return (
     <div>
@@ -116,6 +146,27 @@ export default function FoodSearch({ onPick }) {
           {verified.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
               {verified.map((f) => <VerifiedRow key={f.id} food={f} onPick={pickVerified} />)}
+            </div>
+          )}
+
+          {/* USDA tier */}
+          {usdaResults.length > 0 && (
+            <SectionHeader
+              icon={Building2}
+              label="USDA database"
+              count={usdaResults.length}
+              accent="#60a5fa"
+              sub="US Gov · 7,759 generic foods · per 100g"
+            />
+          )}
+          {usdaResults.length > 0 && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12,
+              maxHeight: 280, overflow: 'auto',
+            }} className="no-scrollbar">
+              {usdaResults.map((row, i) => (
+                <USDARow key={row.n + i} row={row} onPick={pickUSDA} />
+              ))}
             </div>
           )}
 
@@ -226,6 +277,45 @@ function VerifiedRow({ food, onPick }) {
         <div className="mono" style={{ fontWeight: 700, fontSize: 14 }}>{food.calories}</div>
         <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>
           {food.protein}P · {food.carbs}C · {food.fats}F
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function USDARow({ row, onPick }) {
+  return (
+    <button
+      onClick={() => onPick(row)}
+      className="row gap-3"
+      style={{
+        padding: '10px 12px',
+        background: 'var(--surface-2)',
+        border: '1px solid rgba(96,165,250,0.15)',
+        borderRadius: 10,
+        textAlign: 'left',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{
+        width: 24, height: 24, borderRadius: 99,
+        background: 'rgba(96,165,250,0.12)',
+        display: 'grid', placeItems: 'center', flexShrink: 0,
+      }}>
+        <Building2 size={13} style={{ color: '#60a5fa' }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 500, fontSize: 13, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>
+          {row.n}
+        </div>
+        <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>
+          USDA · per 100g
+        </div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div className="mono" style={{ fontWeight: 700, fontSize: 13 }}>{Math.round(row.c)}</div>
+        <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>
+          {row.p}P · {row.h}C · {row.f}F
         </div>
       </div>
     </button>

@@ -73,11 +73,22 @@ export default function WorkoutPage() {
       return { day: 0, name: cw.name, kind: 'custom', exercises, customId: cw.id };
     }
     const p = PLAN.find((p) => p.day === activeDay) || todayPlan;
+    // Resolve each Foundation Plan exercise by name so we can show photo tiles +
+    // detail in the active session, matching the custom-workout experience.
+    const nameMatch = (name, e) => {
+      const a = name.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+      const b = e.name.toLowerCase();
+      return a === b || b.startsWith(a) || a.includes(b) || b.includes(a.split(' ')[0]);
+    };
     return {
       day: p.day, name: p.name, kind: 'default',
-      exercises: p.exercises.map((e, i) => ({ ...e, displayKey: `${e.name}-${i}`, exercise: null })),
+      exercises: p.exercises.map((e, i) => ({
+        ...e,
+        displayKey: `${e.name}-${i}`,
+        exercise: fullLibrary.find((lib) => nameMatch(e.name, lib)) || null,
+      })),
     };
-  }, [tab, activeCustomId, activeDay, customWorkouts, todayPlan]);
+  }, [tab, activeCustomId, activeDay, customWorkouts, todayPlan, fullLibrary]);
 
   const begin = () => {
     if (!activeSession || !activeSession.exercises.length) {
