@@ -1,5 +1,8 @@
-/* The Gym Success Plan — Service Worker */
-const VERSION = 'gsp-v1.0.0';
+/* The Gym Success Plan — Service Worker
+ * Bump VERSION on every deploy that touches user-visible code so old caches
+ * are evicted and clients pick up the new bundle on next reload.
+ */
+const VERSION = 'gsp-v1.3.1';
 const APP_SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 

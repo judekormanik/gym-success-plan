@@ -25,7 +25,25 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            // When a new SW is found, tell it to skipWaiting and reload once it's active.
+            reg.addEventListener('updatefound', () => {
+              const sw = reg.installing;
+              if (!sw) return;
+              sw.addEventListener('statechange', () => {
+                if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                  // A new version is ready — take over immediately.
+                  sw.postMessage('skip-waiting');
+                }
+              });
+            });
+            let reloading = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (reloading) return;
+              reloading = true;
+              window.location.reload();
+            });
+          }).catch(() => {});
         });
       }
     </script>

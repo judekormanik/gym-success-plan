@@ -250,17 +250,32 @@ export default function NutritionPage() {
         })}
       </div>
 
-      {/* QUICK LOG — only on today */}
+      {/* SEARCH — hero on today's view. Verified results rank first; community foods after. */}
       {isToday && (
         <div className="card mb-4" style={{ padding: 18 }}>
           <div className="row-between mb-4" style={{ flexWrap: 'wrap', gap: 8 }}>
             <div>
-              <div className="eyebrow">Quick log</div>
+              <div className="eyebrow">Search any food</div>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                Just tap. Don't overthink it.
+                <b style={{ color: 'var(--gold)' }}>Verified ✓</b> results come up first, then everything else.
+                Adding to <b style={{ color: 'var(--gold)' }}>{MEALS.find((m) => m.id === activeMeal)?.label}</b>.
               </div>
             </div>
-            {/* Portion picker */}
+          </div>
+          <FoodSearch onPick={handleSearchPick} />
+        </div>
+      )}
+
+      {/* QUICK TAP — common foods grid, below search. Optional one-tap path. */}
+      {isToday && (
+        <div className="card mb-4" style={{ padding: 18 }}>
+          <div className="row-between mb-4" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <div className="eyebrow">Or quick-tap</div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                Don't want to type? Tap a common food.
+              </div>
+            </div>
             <div className="row" style={{ gap: 4 }}>
               {PORTIONS.map((p) => (
                 <button
@@ -348,19 +363,6 @@ export default function NutritionPage() {
               <button className="btn btn-gold" onClick={customSubmit}>
                 <Plus size={14} /> Add to {MEALS.find((m) => m.id === activeMeal)?.label.toLowerCase()}
               </button>
-              <button
-                onClick={() => setCustomOpen('search')}
-                className="btn btn-quiet"
-                style={{ marginTop: 4 }}
-              >
-                Or search the full food database
-              </button>
-            </div>
-          )}
-
-          {customOpen === 'search' && (
-            <div style={{ marginTop: 12 }}>
-              <FoodSearch onPick={handleSearchPick} />
             </div>
           )}
         </div>
